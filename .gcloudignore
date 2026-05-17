@@ -1,0 +1,18 @@
+.gcloudignore
+.git
+.gitignore
+
+# Directories to ignore
+backend/downloads/
+backend/cache/
+node_modules/
+backend/node_modules/
+backend/frontend/node_modules/
+.stitch-mcp/
+
+# Files to ignore
+.env
+backend/.env
+*.log
+*.md
+get_session.js

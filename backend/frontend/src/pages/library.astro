@@ -1,0 +1,92 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const list = [
+	{ name: 'Liked Tracks', info: '428 songs', tag: 'playlist' },
+	{ name: 'Night Driver', info: 'by MelodyFlow', tag: 'mix' },
+	{ name: 'Echo Station', info: 'artist', tag: 'artist' },
+	{ name: 'Low Signal Sessions', info: 'album', tag: 'album' }
+];
+---
+
+<Layout title="MelodyFlow | Library" active="library">
+	<section class="card header">
+		<div>
+			<h1 class="section-title">Your Library</h1>
+			<p class="muted">Saved collections and personal mixes.</p>
+		</div>
+		<button>Add New</button>
+	</section>
+
+	<section class="card library-list">
+		{list.map((item) => (
+			<article>
+				<div class={`cover ${item.tag}`}></div>
+				<div>
+					<h2>{item.name}</h2>
+					<p class="muted">{item.info}</p>
+				</div>
+			</article>
+		))}
+	</section>
+</Layout>
+
+<style>
+	.header,
+	.library-list {
+		padding: 1.1rem;
+	}
+
+	.header {
+		margin-bottom: 1rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.9rem;
+	}
+
+	h1,
+	h2,
+	p {
+		margin: 0;
+	}
+
+	button {
+		border: 1px solid rgba(154, 178, 193, 0.25);
+		background: rgba(255, 255, 255, 0.06);
+		color: var(--text);
+		font-weight: 700;
+		padding: 0.6rem 0.85rem;
+		border-radius: 0.7rem;
+	}
+
+	.library-list {
+		display: grid;
+		gap: 0.65rem;
+	}
+
+	article {
+		display: grid;
+		grid-template-columns: 56px 1fr;
+		gap: 0.75rem;
+		align-items: center;
+		padding: 0.6rem;
+		border-radius: 0.75rem;
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.cover {
+		width: 56px;
+		height: 56px;
+		border-radius: 0.65rem;
+	}
+
+	.cover.playlist { background: linear-gradient(135deg, #ff8e58, #713a1f); }
+	.cover.mix { background: linear-gradient(135deg, #5f86a8, #29425a); }
+	.cover.artist { background: linear-gradient(135deg, #7380a8, #3a466f); border-radius: 999px; }
+	.cover.album { background: linear-gradient(135deg, #4e917e, #255646); }
+
+	h2 {
+		font-size: 1rem;
+	}
+</style>

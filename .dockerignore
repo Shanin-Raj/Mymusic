@@ -1,0 +1,12 @@
+.gcloudignore
+.git
+.gitignore
+node_modules
+**/node_modules
+.stitch-mcp
+.env
+**/ .env
+backend/cache
+backend/downloads
+*.md
+get_session.js

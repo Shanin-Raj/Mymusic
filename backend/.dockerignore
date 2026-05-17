@@ -1,0 +1,9 @@
+downloads/
+cache/
+node_modules/
+.git/
+.env
+*.log
+frontend/node_modules/
+
+
