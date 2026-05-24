@@ -20,5 +20,8 @@
     "spotify-url-info": "^3.3.0",
     "spotify-web-api-node": "^5.0.2",
     "telegram": "^2.26.22"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }

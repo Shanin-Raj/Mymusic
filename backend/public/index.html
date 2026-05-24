@@ -3,108 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sonic Vault — Your Music. Stored Forever.</title>
-    <meta name="description" content="Sonic Vault — A premium private music streaming platform. Your music, stored forever in the cloud.">
-    <meta name="theme-color" content="#121414">
+    <title>Sonic Vault — Your Private Music Vault</title>
+    <meta name="description" content="Sonic Vault — Bright Editorial Design. Your private music collection, elegantly stored.">
+    <meta name="theme-color" content="#191414">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Sonic Vault">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/assets/logo.jpg">
+    <link rel="icon" type="image/jpeg" href="/assets/logo.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=10">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css?v=41">
 </head>
 <body>
 
     <!-- ═══════════════════════════════════════════ -->
-    <!-- SPLASH / LOGIN SCREEN                       -->
+    <!-- LOGIN SCREEN                                -->
     <!-- ═══════════════════════════════════════════ -->
     <div id="screen-login" class="screen active">
-        <div class="login-bg">
-            <div class="waveform" id="waveform-container"></div>
-            <div class="login-glow"></div>
-        </div>
         <div class="login-content">
             <div class="login-brand">
-                <span class="material-symbols-rounded login-bolt">electric_bolt</span>
+                <img src="/assets/logo.jpg" alt="Logo" style="width:100px;height:100px;border-radius:24px;margin-bottom:20px;box-shadow:0 12px 30px rgba(0,0,0,0.1)">
                 <h1 class="login-title">SONIC VAULT</h1>
-                <p class="login-subtitle">Your music. Stored forever.</p>
+                <p class="login-subtitle">Elegance in Every Note.</p>
             </div>
-            <div class="login-card">
-                <button class="btn-primary btn-spotify" id="btn-enter">
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="#000"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                    Continue with Spotify
-                </button>
-                <button class="btn-ghost" id="btn-guest">Browse as Guest</button>
-                <div class="login-divider"><span>OR</span></div>
-                <button class="btn-google" id="btn-google">
-                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                    Sign in with Google
-                </button>
-                <p class="login-terms">By continuing, you agree to our Terms & Privacy Policy</p>
-            </div>
+            <button class="btn-primary" id="btn-enter">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#FFF" style="margin-right:8px"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+                Continue with Spotify
+            </button>
+            <button class="btn-ghost" id="btn-guest">Browse Collections</button>
         </div>
     </div>
 
     <!-- ═══════════════════════════════════════════ -->
-    <!-- MAIN APP SHELL (shown after login)          -->
+    <!-- APP SHELL                                   -->
     <!-- ═══════════════════════════════════════════ -->
     <div id="app-shell" class="app-shell hidden">
 
         <!-- ══════ HOME FEED ══════ -->
         <div id="screen-home" class="screen active">
             <header class="screen-header">
-                <h1 class="page-title">Good Evening</h1>
-                <div class="header-actions">
-                    <button class="icon-btn" aria-label="Notifications"><span class="material-symbols-rounded">notifications</span></button>
-                    <button class="icon-btn" aria-label="Settings" data-nav="settings"><span class="material-symbols-rounded">settings</span></button>
+                <h1 class="page-title">Discovery</h1>
+                <div class="header-actions" style="display:flex;gap:8px">
+                    <button class="icon-btn" id="btn-theme"><span class="material-symbols-rounded">dark_mode</span></button>
+                    <button class="icon-btn" data-nav="settings"><span class="material-symbols-rounded">account_circle</span></button>
                 </div>
             </header>
 
-            <section class="section" id="recently-played">
-                <h2 class="section-title">Recently Played</h2>
-                <div class="recent-grid" id="recent-grid">
-                    <!-- dynamically populated -->
-                </div>
+            <section style="margin-bottom: 40px;">
+                <h2 class="section-title">Recently Synced</h2>
+                <div class="recent-grid" id="recent-grid"></div>
             </section>
 
-            <section class="section">
-                <h2 class="section-title">Made for You</h2>
-                <div class="horizontal-scroll" id="made-for-you">
-                    <div class="mix-card" style="--g1:#1DB954;--g2:#134829">
-                        <div class="mix-art"><span class="material-symbols-rounded">auto_awesome</span></div>
-                        <p class="mix-title">Discover Weekly</p>
-                        <p class="mix-sub">New music, just for you.</p>
+            <section style="margin-bottom: 40px;">
+                <h2 class="section-title">Editor's Picks</h2>
+                <div class="horizontal-scroll">
+                    <div class="mix-card" style="--g1:#FA243C">
+                        <div class="mix-art"><span class="material-symbols-rounded" style="font-size:48px;color:var(--primary)">auto_awesome</span></div>
+                        <p class="mix-title">Sonic Clarity</p>
+                        <p class="mix-sub">The new standard.</p>
                     </div>
-                    <div class="mix-card" style="--g1:#5B86E5;--g2:#36D1DC">
-                        <div class="mix-art"><span class="material-symbols-rounded">spa</span></div>
-                        <p class="mix-title">Chill Vibes</p>
-                        <p class="mix-sub">Relax and unwind.</p>
-                    </div>
-                    <div class="mix-card" style="--g1:#fc5c7d;--g2:#6a82fb">
-                        <div class="mix-art"><span class="material-symbols-rounded">history</span></div>
-                        <p class="mix-title">Retro Rewind</p>
-                        <p class="mix-sub">Classics from the vault.</p>
-                    </div>
-                    <div class="mix-card" style="--g1:#f7971e;--g2:#ffd200">
-                        <div class="mix-art"><span class="material-symbols-rounded">local_fire_department</span></div>
-                        <p class="mix-title">Hot Tracks</p>
-                        <p class="mix-sub">Trending now.</p>
+                    <div class="mix-card" style="--g1:#5B86E5">
+                        <div class="mix-art"><span class="material-symbols-rounded" style="font-size:48px;color:#5B86E5">waves</span></div>
+                        <p class="mix-title">Deep Focus</p>
+                        <p class="mix-sub">Clean acoustic layers.</p>
                     </div>
                 </div>
             </section>
 
-            <section class="section">
-                <div class="section-header">
-                    <h2 class="section-title">Your Vault</h2>
-                    <button class="btn-text" data-nav="library">See All</button>
+            <section>
+                <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <h2 class="section-title" style="margin-bottom:0">Library</h2>
+                    <button style="color:var(--primary);font-weight:700;font-size:14px" data-nav="library">VIEW ALL</button>
                 </div>
-                <div class="track-list" id="home-tracks">
-                    <!-- dynamically populated -->
-                </div>
+                <div class="track-list" id="home-tracks"></div>
             </section>
         </div>
 
@@ -113,36 +87,44 @@
             <header class="screen-header">
                 <h1 class="page-title">Search</h1>
             </header>
-            <div class="search-container">
-                <div class="search-input-wrap">
-                    <span class="material-symbols-rounded search-icon">search</span>
-                    <input type="text" id="search-input" placeholder="Artist, track, or mood" autocomplete="off">
-                    <button class="search-clear hidden" id="search-clear"><span class="material-symbols-rounded">close</span></button>
-                </div>
+            <div style="position:relative;margin-bottom:24px">
+                <input type="text" id="search-input" placeholder="Tracks, Artists, Moods..." style="width:100%;padding:16px 20px 16px 48px;border-radius:var(--radius-full);border:none;font-family:inherit;font-size:16px;color:var(--on-surface)">
+                <span class="material-symbols-rounded" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--on-surface-dim)">search</span>
+                <button id="search-clear" class="hidden" style="position:absolute;right:12px;top:50%;transform:translateY(-50%)"><span class="material-symbols-rounded">close</span></button>
             </div>
-            <div class="chips" id="genre-chips">
-                <button class="chip active">All</button>
-                <button class="chip">Bollywood</button>
-                <button class="chip">Indie</button>
-                <button class="chip">Classical</button>
-                <button class="chip">Devotional</button>
-                <button class="chip">Tamil</button>
-            </div>
-            <section class="section" id="search-results-section" style="display:none">
+            <div id="search-results-section" style="display:none">
                 <h2 class="section-title" id="search-results-title">Results</h2>
                 <div class="track-list" id="search-results"></div>
-            </section>
-            <section class="section" id="browse-section">
-                <h2 class="section-title">Browse Collections</h2>
+            </div>
+            <div id="search-browse-section">
+                <h2 class="section-title">Start browsing</h2>
                 <div class="genre-grid">
-                    <div class="genre-card" style="--g1:#1DB954;--g2:#0a4d22"><span>Bollywood Hits</span></div>
-                    <div class="genre-card" style="--g1:#5B86E5;--g2:#1a3a6a"><span>Lo-Fi</span></div>
-                    <div class="genre-card" style="--g1:#fc5c7d;--g2:#6a2038"><span>Romance</span></div>
-                    <div class="genre-card" style="--g1:#11998e;--g2:#0a3d39"><span>Classical</span></div>
-                    <div class="genre-card" style="--g1:#f7971e;--g2:#5a3608"><span>Sufi</span></div>
-                    <div class="genre-card" style="--g1:#8E2DE2;--g2:#36134f"><span>Indie</span></div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #E61E32, #FA243C)">
+                        <span class="genre-title">Music</span>
+                        <span class="material-symbols-rounded genre-icon">music_note</span>
+                    </div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #1E3264, #2D46B9)">
+                        <span class="genre-title">Podcasts</span>
+                        <span class="material-symbols-rounded genre-icon">podcasts</span>
+                    </div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #7D52DA, #A26BFA)">
+                        <span class="genre-title">Live Events</span>
+                        <span class="material-symbols-rounded genre-icon">event</span>
+                    </div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #8C1932, #E8125C)">
+                        <span class="genre-title">Made For You</span>
+                        <span class="material-symbols-rounded genre-icon">favorite</span>
+                    </div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #0D73EC, #19E68C)">
+                        <span class="genre-title">New Releases</span>
+                        <span class="material-symbols-rounded genre-icon">fiber_new</span>
+                    </div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #FF6437, #FF8C37)">
+                        <span class="genre-title">Charts</span>
+                        <span class="material-symbols-rounded genre-icon">trending_up</span>
+                    </div>
                 </div>
-            </section>
+            </div>
         </div>
 
         <!-- ══════ LIBRARY SCREEN ══════ -->
@@ -150,58 +132,207 @@
             <header class="screen-header">
                 <h1 class="page-title">Your Library</h1>
                 <div class="header-actions">
-                    <button class="icon-btn" aria-label="Sort"><span class="material-symbols-rounded">sort</span></button>
+                    <button class="icon-btn" id="btn-show-playlist-add" title="Create Playlist"><span class="material-symbols-rounded">create_new_folder</span></button>
+                    <button class="icon-btn" id="btn-show-add" title="Add Track"><span class="material-symbols-rounded">add</span></button>
                 </div>
             </header>
-            <div class="library-stats" id="library-stats">
-                <div class="stat-item">
-                    <span class="stat-value" id="stat-songs">0</span>
-                    <span class="stat-label">Songs</span>
+
+            <!-- Playlist Section -->
+            <section style="margin-bottom: 32px;">
+                <h2 class="section-title" style="font-size: 18px;">Playlists</h2>
+                <div id="playlist-list" class="horizontal-scroll" style="padding-bottom: 12px;">
+                    <!-- Playlists rendered dynamically -->
                 </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="stat-artists">0</span>
-                    <span class="stat-label">Artists</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="stat-hours">0h</span>
-                    <span class="stat-label">Listening</span>
-                </div>
+            </section>
+
+            <div style="display:flex;gap:12px;margin-bottom:24px">
+                <button class="btn-primary" id="btn-shuffle-all" style="flex:1;margin-bottom:0"><span class="material-symbols-rounded" style="margin-right:8px">shuffle</span>Shuffle</button>
+                <button class="btn-ghost" id="btn-play-all" style="flex:1"><span class="material-symbols-rounded" style="margin-right:8px;color:var(--primary)">play_arrow</span>Play</button>
             </div>
-            <div class="library-actions">
-                <button class="btn-primary btn-sm" id="btn-shuffle-all">
-                    <span class="material-symbols-rounded">shuffle</span> Shuffle All
+            <div class="track-list" id="library-tracks"></div>
+        </div>
+
+        <!-- ══════ SETTINGS SCREEN ══════ -->
+        <div id="screen-settings" class="screen">
+            <header class="screen-header">
+                <button class="icon-btn screen-header-back-btn" id="btn-settings-back">
+                    <span class="material-symbols-rounded">arrow_back</span>
                 </button>
-                <button class="btn-ghost btn-sm" id="btn-play-all">
-                    <span class="material-symbols-rounded">play_arrow</span> Play All
+                <h1 class="page-title">Settings</h1>
+            </header>
+            
+            <div class="profile-avatar-container">
+                <div class="profile-avatar-initial">SV</div>
+                <div class="profile-details">
+                    <h2 style="font-family:var(--font-head);font-size:18px;font-weight:700">Sonic Vault User</h2>
+                    <p style="font-size:12px;color:var(--on-surface-dim)">Premium Plan • Active Member</p>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3 class="settings-group-title">Account</h3>
+                <div class="setting-row">
+                    <div class="setting-row-left">
+                        <span class="material-symbols-rounded setting-icon">person</span>
+                        <span class="setting-label">Profile Status</span>
+                    </div>
+                    <span class="setting-value">Premium Member</span>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-row-left">
+                        <span class="material-symbols-rounded setting-icon">send</span>
+                        <span class="setting-label">Telegram Vault</span>
+                    </div>
+                    <span class="setting-value">Connected</span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3 class="settings-group-title">Preferences</h3>
+                <div class="setting-row">
+                    <div class="setting-row-left">
+                        <span class="material-symbols-rounded setting-icon">dark_mode</span>
+                        <span class="setting-label">Dark Mode</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="settings-darkmode-switch" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row" style="cursor:pointer" id="btn-settings-about">
+                    <div class="setting-row-left">
+                        <span class="material-symbols-rounded setting-icon">info</span>
+                        <span class="setting-label">About Sonic Vault</span>
+                    </div>
+                    <span class="material-symbols-rounded" style="color:var(--on-surface-low)">chevron_right</span>
+                </div>
+            </div>
+
+            <button class="btn-ghost" id="btn-signout" style="width:100%;color:var(--primary);border-color:var(--primary-dim)">
+                <span class="material-symbols-rounded" style="margin-right:8px">logout</span>Sign Out
+            </button>
+        </div>
+
+        <!-- ══════ PREMIUM SCREEN ══════ -->
+        <div id="screen-premium" class="screen">
+            <header class="screen-header">
+                <h1 class="page-title">Premium</h1>
+                <div class="header-actions">
+                    <button class="icon-btn" data-nav="settings"><span class="material-symbols-rounded">settings</span></button>
+                </div>
+            </header>
+            <div class="playlist-details-header" style="background: linear-gradient(180deg, var(--primary) 0%, transparent 100%);">
+                <div class="playlist-details-art" style="background: #000; box-shadow: 0 12px 36px rgba(0,0,0,0.6);">
+                    <span class="material-symbols-rounded" style="font-size:64px;color:var(--primary)">workspace_premium</span>
+                </div>
+                <h2 class="playlist-details-name">Sonic Vault Premium</h2>
+                <p class="playlist-details-meta">Unlimited Storage • High Fidelity</p>
+            </div>
+            <section style="margin-top:24px">
+                <div class="recent-grid">
+                    <div class="recent-item" style="padding:16px; justify-content:center; flex-direction:column; height:auto; gap:12px; text-align:center">
+                        <span class="material-symbols-rounded" style="font-size:32px;color:var(--primary)">cloud_done</span>
+                        <p class="ri-name">Cloud Sync</p>
+                    </div>
+                    <div class="recent-item" style="padding:16px; justify-content:center; flex-direction:column; height:auto; gap:12px; text-align:center">
+                        <span class="material-symbols-rounded" style="font-size:32px;color:var(--primary)">high_quality</span>
+                        <p class="ri-name">Lossless Audio</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ══════ CREATE / ADD MUSIC SCREEN ══════ -->
+        <div id="screen-add-music" class="screen">
+            <header class="screen-header">
+                <h1 class="page-title">Create</h1>
+            </header>
+            <div style="background:var(--surface); padding:24px; border-radius:var(--radius-lg); border:1px solid var(--glass-border)">
+                <h3 style="margin-bottom:16px">Sync New Music</h3>
+                <p style="font-size:13px; color:var(--on-surface-dim); margin-bottom:20px">Enter a Spotify or YouTube link to sync it to your private vault.</p>
+                
+                <div class="search-container">
+                    <div class="search-input-wrap">
+                        <span class="material-symbols-rounded search-icon">link</span>
+                        <input type="text" id="main-add-url" placeholder="Paste link here..." style="width:100%;padding:14px 16px 14px 48px;border-radius:var(--radius-sm);background:var(--surface);border:none;color:var(--on-surface)">
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin:24px 0; position:relative">
+                    <hr style="border:0; border-top:1px solid var(--surface-high)">
+                    <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface); padding:0 12px; font-size:12px; color:var(--on-surface-low); font-weight:700">OR MANUALLY</span>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:12px">
+                    <input type="text" id="main-add-name" placeholder="Song Name" style="width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--surface);border:none;color:var(--on-surface)">
+                    <input type="text" id="main-add-artist" placeholder="Artist Name" style="width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--surface);border:none;color:var(--on-surface)">
+                </div>
+
+                <button class="btn-primary" id="btn-main-add-submit" style="width:100%; margin-top:24px; height:56px">
+                    <span class="material-symbols-rounded" style="margin-right:8px">sync</span> Sync to Vault
                 </button>
-            </div>
-            <div class="chips" style="margin-bottom: 16px;">
-                <button class="chip active">All</button>
-                <button class="chip">Liked</button>
-                <button class="chip">Recently Added</button>
-            </div>
-            <div class="track-list" id="library-tracks">
-                <!-- All songs listed here -->
+                
+                <div id="main-add-status" class="hidden" style="margin-top:20px; text-align:center">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:12px; color:var(--primary); font-weight:700">
+                        <span class="material-symbols-rounded spinning">sync</span>
+                        <span id="main-add-status-text">Processing...</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- ══════ NOW PLAYING SCREEN ══════ -->
-        <div id="screen-player" class="screen">
-            <header class="player-header">
-                <button class="icon-btn" id="btn-player-back"><span class="material-symbols-rounded">keyboard_arrow_down</span></button>
-                <div class="player-header-info">
-                    <p class="player-source" id="player-source">Playing from Vault</p>
+        <!-- ══════ PLAYLIST DETAILS SCREEN ══════ -->
+        <div id="screen-playlist-details" class="screen">
+            <header class="screen-header">
+                <button class="icon-btn screen-header-back-btn" id="btn-playlist-details-back">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                </button>
+                <h1 class="page-title" style="font-size:24px;margin-bottom:0">Playlist</h1>
+                <div class="header-actions">
+                    <button class="icon-btn" id="btn-playlist-details-delete" style="color:var(--on-surface-low)" title="Delete Playlist"><span class="material-symbols-rounded">delete</span></button>
                 </div>
-                <button class="icon-btn" id="btn-player-more"><span class="material-symbols-rounded">more_vert</span></button>
             </header>
-            <div class="player-art" id="player-art">
-                <div class="player-art-inner">
-                    <span class="material-symbols-rounded player-art-icon">music_note</span>
+
+            <div class="playlist-details-header">
+                <div class="playlist-details-art">
+                    <span class="material-symbols-rounded" style="font-size:64px;color:var(--primary)">library_music</span>
+                </div>
+                <h2 class="playlist-details-name" id="playlist-details-name">Playlist Name</h2>
+                <p class="playlist-details-meta" id="playlist-details-meta">0 tracks • 0 min</p>
+                <div class="playlist-actions">
+                    <button class="playlist-btn-play" id="btn-playlist-play" title="Play">
+                        <span class="material-symbols-rounded">play_arrow</span>
+                    </button>
+                    <button class="playlist-btn-action" id="btn-playlist-shuffle">
+                        <span class="material-symbols-rounded">shuffle</span> Shuffle
+                    </button>
+                    <button class="playlist-btn-action" id="btn-playlist-add-songs">
+                        <span class="material-symbols-rounded">add_circle</span> Add Songs
+                    </button>
                 </div>
             </div>
+
+            <div class="track-list" id="playlist-details-tracks">
+                <!-- Playlist songs rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- ══════ NOW PLAYING ══════ -->
+        <div id="screen-player" class="screen">
+            <header class="player-header">
+                <button class="icon-btn" id="btn-player-back" style="background:transparent"><span class="material-symbols-rounded">keyboard_arrow_down</span></button>
+                <span class="player-source">NOW PLAYING</span>
+                <button class="icon-btn" style="background:transparent"><span class="material-symbols-rounded">more_horiz</span></button>
+            </header>
+            <div class="player-art" id="player-art">
+                <div class="player-art-inner"><span class="material-symbols-rounded" style="font-size:80px;color:var(--surface-dim)">music_note</span></div>
+            </div>
             <div class="player-info">
-                <h1 class="player-title" id="player-title">No Track Selected</h1>
-                <p class="player-artist" id="player-artist">Select a track to play</p>
+                <div class="player-meta">
+                    <h2 class="player-title" id="player-title">No Track</h2>
+                    <p class="player-artist" id="player-artist">—</p>
+                </div>
+                <button id="btn-favorite" style="color:var(--on-surface-dim)"><span class="material-symbols-rounded" style="font-size:28px">favorite_border</span></button>
             </div>
             <div class="player-progress">
                 <div class="progress-bar">
@@ -213,238 +344,111 @@
                 </div>
             </div>
             <div class="player-controls">
-                <button class="icon-btn ctrl-btn" id="btn-shuffle"><span class="material-symbols-rounded">shuffle</span></button>
-                <button class="icon-btn ctrl-btn" id="btn-prev"><span class="material-symbols-rounded">skip_previous</span></button>
+                <button class="ctrl-btn" id="btn-shuffle" style="background:transparent"><span class="material-symbols-rounded">shuffle</span></button>
+                <button class="ctrl-btn" id="btn-prev" style="background:transparent"><span class="material-symbols-rounded" style="font-size:44px;font-variation-settings:'FILL' 1">skip_previous</span></button>
                 <button class="play-btn" id="btn-play"><span class="material-symbols-rounded">play_arrow</span></button>
-                <button class="icon-btn ctrl-btn" id="btn-next"><span class="material-symbols-rounded">skip_next</span></button>
-                <button class="icon-btn ctrl-btn" id="btn-repeat"><span class="material-symbols-rounded">repeat</span></button>
+                <button class="ctrl-btn" id="btn-next" style="background:transparent"><span class="material-symbols-rounded" style="font-size:44px;font-variation-settings:'FILL' 1">skip_next</span></button>
+                <button class="ctrl-btn" id="btn-repeat" style="background:transparent"><span class="material-symbols-rounded">repeat</span></button>
             </div>
             <div class="player-extras">
-                <button class="icon-btn" id="btn-favorite"><span class="material-symbols-rounded">favorite_border</span></button>
-                <button class="icon-btn" id="btn-sleep-timer"><span class="material-symbols-rounded">bedtime</span></button>
-                <button class="icon-btn" id="btn-queue"><span class="material-symbols-rounded">queue_music</span></button>
-            </div>
-
-            <!-- Queue panel (slide up over player) -->
-            <div id="queue-panel" class="queue-panel hidden">
-                <div class="queue-header">
-                    <span class="queue-title">Now Playing Queue</span>
-                    <button class="icon-btn" id="queue-close"><span class="material-symbols-rounded">expand_more</span></button>
-                </div>
-                <div id="queue-list" class="queue-list"></div>
-            </div>
-        </div>
-
-        <!-- ══════ DOWNLOADS SCREEN ══════ -->
-        <div id="screen-downloads" class="screen">
-            <header class="screen-header">
-                <h1 class="page-title">Downloads</h1>
-            </header>
-            <div class="download-storage">
-                <div class="storage-ring">
-                    <svg viewBox="0 0 120 120" class="storage-svg">
-                        <circle cx="60" cy="60" r="50" class="ring-bg"/>
-                        <circle cx="60" cy="60" r="50" class="ring-fill" id="storage-ring-fill"/>
-                    </svg>
-                    <div class="storage-center">
-                        <span class="storage-used" id="storage-used">0</span>
-                        <span class="storage-label">songs synced</span>
-                    </div>
-                </div>
-                <div class="storage-details">
-                    <div class="storage-row">
-                        <span class="dot dot-green"></span>
-                        <span>Synced to Telegram</span>
-                        <span class="storage-val" id="synced-count">0</span>
-                    </div>
-                    <div class="storage-row">
-                        <span class="dot dot-grey"></span>
-                        <span>Local Cache</span>
-                        <span class="storage-val">0 MB</span>
-                    </div>
+                <span class="material-symbols-rounded">airplay</span>
+                <div style="display:flex;gap:32px">
+                    <button id="btn-theme-player" style="background:transparent"><span class="material-symbols-rounded">dark_mode</span></button>
+                    <button id="btn-sleep-timer" style="background:transparent"><span class="material-symbols-rounded">bedtime</span></button>
+                    <button id="btn-queue" style="background:transparent"><span class="material-symbols-rounded">queue_music</span></button>
                 </div>
             </div>
-            <button class="btn-primary btn-download-all" id="btn-download-all">
-                <span class="material-symbols-rounded">cloud_download</span>
-                Download All to Cache
-            </button>
-            <div class="download-progress-box hidden" id="download-progress-box">
-                <div class="dl-progress-header">
-                    <span class="material-symbols-rounded dl-spin">sync</span>
-                    <span id="dl-progress-text">Downloading...</span>
-                </div>
-                <div class="dl-progress-bar"><div class="dl-progress-fill" id="dl-progress-fill"></div></div>
-                <p class="dl-progress-detail" id="dl-progress-detail">0 / 0</p>
-            </div>
-            <div class="chips">
-                <button class="chip active">All</button>
-                <button class="chip">Completed</button>
-                <button class="chip">In Queue</button>
-            </div>
-            <section class="section">
-                <h2 class="section-title">Downloaded</h2>
-                <div class="track-list" id="downloaded-tracks"></div>
-            </section>
-        </div>
-
-        <!-- ══════ SETTINGS SCREEN ══════ -->
-        <div id="screen-settings" class="screen">
-            <header class="screen-header">
-                <h1 class="page-title">Settings</h1>
-            </header>
-            <div class="settings-profile">
-                <div class="profile-avatar">S</div>
-                <div>
-                    <h3 class="profile-name">Shanin Raj</h3>
-                    <p class="profile-email">xachu007@gmail.com</p>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3 class="settings-group-title">Account</h3>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">person</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Profile</span>
-                        <span class="setting-value">Shanin Raj</span>
-                    </div>
-                    <span class="material-symbols-rounded setting-chevron">chevron_right</span>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">send</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Telegram Vault</span>
-                        <span class="setting-value tg-status" id="tg-status">Connected</span>
-                    </div>
-                    <span class="material-symbols-rounded setting-chevron">chevron_right</span>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3 class="settings-group-title">Playback</h3>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">graphic_eq</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Audio Quality</span>
-                        <span class="setting-value">Very High (320kbps)</span>
-                    </div>
-                    <span class="material-symbols-rounded setting-chevron">chevron_right</span>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">tune</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Gapless Playback</span>
-                    </div>
-                    <div class="toggle active" id="toggle-gapless"><div class="toggle-thumb"></div></div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">swap_horiz</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Crossfade</span>
-                        <span class="setting-value">6 seconds</span>
-                    </div>
-                    <span class="material-symbols-rounded setting-chevron">chevron_right</span>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3 class="settings-group-title">Downloads</h3>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">download</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Download over Wi-Fi only</span>
-                    </div>
-                    <div class="toggle active"><div class="toggle-thumb"></div></div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">storage</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Storage Location</span>
-                        <span class="setting-value">Telegram Cloud</span>
-                    </div>
-                    <span class="material-symbols-rounded setting-chevron">chevron_right</span>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3 class="settings-group-title">About</h3>
-                <div class="setting-row">
-                    <div class="setting-icon"><span class="material-symbols-rounded">info</span></div>
-                    <div class="setting-info">
-                        <span class="setting-label">Version</span>
-                        <span class="setting-value">1.0.0 (Sonic Build)</span>
-                    </div>
-                </div>
-            </div>
-            <button class="btn-signout" id="btn-signout">
-                <span class="material-symbols-rounded">logout</span> Sign Out
-            </button>
         </div>
 
         <!-- ══════ MINI PLAYER ══════ -->
         <div class="mini-player hidden" id="mini-player">
-            <div class="mini-progress" id="mini-progress"></div>
+            <div id="mini-progress" style="position:absolute;top:0;left:0;height:2px;background:var(--primary);width:0%;z-index:10"></div>
             <div class="mini-content" id="mini-player-tap">
-                <div class="mini-art" id="mini-art">
-                    <span class="material-symbols-rounded">music_note</span>
-                </div>
+                <div class="mini-art" id="mini-art"></div>
                 <div class="mini-info">
                     <p class="mini-title" id="mini-title">No track</p>
                     <p class="mini-artist" id="mini-artist">—</p>
                 </div>
-                <div class="mini-controls">
-                    <button class="icon-btn" id="mini-prev"><span class="material-symbols-rounded">skip_previous</span></button>
-                    <button class="icon-btn mini-play" id="mini-play"><span class="material-symbols-rounded">play_arrow</span></button>
-                    <button class="icon-btn" id="mini-next"><span class="material-symbols-rounded">skip_next</span></button>
-                </div>
+            </div>
+            <div class="mini-controls">
+                <button class="icon-btn" id="mini-play" style="background:transparent"><span class="material-symbols-rounded" style="font-size:32px">play_arrow</span></button>
+                <button class="icon-btn" id="mini-next" style="background:transparent"><span class="material-symbols-rounded" style="font-size:32px">skip_next</span></button>
             </div>
         </div>
 
-        <!-- ══════ BOTTOM NAVIGATION ══════ -->
+        <!-- ══════ BOTTOM NAV ══════ -->
         <nav class="bottom-nav" id="bottom-nav">
-            <button class="nav-item active" data-screen="home">
-                <span class="material-symbols-rounded">home</span>
-                <span class="nav-label">Home</span>
-            </button>
-            <button class="nav-item" data-screen="search">
-                <span class="material-symbols-rounded">search</span>
-                <span class="nav-label">Search</span>
-            </button>
-            <button class="nav-item" data-screen="library">
-                <span class="material-symbols-rounded">library_music</span>
-                <span class="nav-label">Library</span>
-            </button>
-            <button class="nav-item" data-screen="downloads">
-                <span class="material-symbols-rounded">download</span>
-                <span class="nav-label">Downloads</span>
-            </button>
-            <button class="nav-item" data-screen="settings">
-                <span class="material-symbols-rounded">settings</span>
-                <span class="nav-label">Settings</span>
-            </button>
+            <button class="nav-item active" data-screen="home"><span class="material-symbols-rounded">home</span><span class="nav-label">Home</span></button>
+            <button class="nav-item" data-screen="search"><span class="material-symbols-rounded">search</span><span class="nav-label">Search</span></button>
+            <button class="nav-item" data-screen="library"><span class="material-symbols-rounded">library_music</span><span class="nav-label">Your Library</span></button>
+            <button class="nav-item" data-screen="premium"><span class="material-symbols-rounded">workspace_premium</span><span class="nav-label">Premium</span></button>
         </nav>
     </div>
 
-    <!-- Sleep Timer Modal -->
-    <div class="modal-overlay hidden" id="sleep-modal">
+    <!-- Modal for Adding Music -->
+    <div id="add-modal" class="modal-overlay hidden">
         <div class="modal-card">
-            <h3 class="modal-title"><span class="material-symbols-rounded">bedtime</span> Sleep Timer</h3>
-            <p class="modal-desc" id="sleep-status">Music will stop after the selected time</p>
-            <div class="sleep-options">
-                <button class="sleep-opt" data-minutes="15">15 min</button>
-                <button class="sleep-opt" data-minutes="30">30 min</button>
-                <button class="sleep-opt" data-minutes="45">45 min</button>
-                <button class="sleep-opt" data-minutes="60">1 hour</button>
-                <button class="sleep-opt" data-minutes="90">1.5 hr</button>
-                <button class="sleep-opt sleep-off" data-minutes="0">Turn Off</button>
-            </div>
-            <button class="btn-ghost modal-close" id="sleep-modal-close">Cancel</button>
+            <h3 style="font-family:var(--font-head);margin-bottom:16px;color:var(--on-surface)">Sync New Music</h3>
+            <input type="text" id="add-url" placeholder="Spotify Link or YouTube Link" style="width:100%;padding:12px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--glass-border);color:var(--on-surface);margin-bottom:12px;">
+            <p style="text-align:center;font-size:12px;color:var(--on-surface-dim);margin-bottom:12px;">- OR ENTER MANUALLY -</p>
+            <input type="text" id="add-name" placeholder="Song Name" style="width:100%;padding:12px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--glass-border);color:var(--on-surface);margin-bottom:12px;">
+            <input type="text" id="add-artist" placeholder="Artist Name" style="width:100%;padding:12px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--glass-border);color:var(--on-surface);margin-bottom:16px;">
+            <button class="btn-primary" id="btn-add-submit" style="width:100%;margin-bottom:0">Add to Vault</button>
+            <p id="add-loading" class="hidden" style="text-align:center;margin-top:12px;color:var(--primary);font-weight:700;">Syncing to cloud...</p>
+            <button id="add-modal-close" style="width:100%;margin-top:20px;font-weight:700;color:var(--primary)">CANCEL</button>
         </div>
     </div>
 
-    <script src="/app.js?v=10"></script>
+    <!-- Playlist Modal -->
+    <div class="modal-overlay hidden" id="playlist-modal">
+        <div class="modal-card">
+            <h3 style="font-family:var(--font-head);margin-bottom:16px;color:var(--on-surface)">New Playlist</h3>
+            <input type="text" id="playlist-name" placeholder="Playlist Name" style="width:100%;padding:12px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--glass-border);color:var(--on-surface);margin-bottom:16px;">
+            <div style="display:flex;gap:12px">
+                <button class="btn-primary" id="btn-playlist-submit" style="flex:1;margin-bottom:0">Create</button>
+                <button class="btn-ghost" id="playlist-modal-close" style="flex:1">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Songs to Playlist Modal -->
+    <div id="playlist-songs-add-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 400px; display: flex; flex-direction: column; max-height: 80vh;">
+            <h3 style="font-family:var(--font-head);margin-bottom:16px;color:var(--on-surface)">Add Songs</h3>
+            <div class="playlist-add-list" id="playlist-add-songs-list" style="flex:1; overflow-y:auto; margin-bottom:16px;">
+                <!-- Library songs to add rendered dynamically -->
+            </div>
+            <button id="playlist-songs-add-modal-close" style="width:100%;font-weight:700;color:var(--primary);background:none;border:none;padding:12px 0;">DONE / CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Queue Panel -->
+    <div id="queue-panel" class="queue-panel hidden">
+        <header class="queue-header">
+            <h2 class="section-title" style="margin-bottom:0">Up Next</h2>
+            <button class="icon-btn" id="queue-close" style="background:var(--surface)"><span class="material-symbols-rounded">close</span></button>
+        </header>
+        <div class="queue-list" id="queue-list"></div>
+    </div>
+
+    <!-- Sleep Modal -->
+    <div class="modal-overlay hidden" id="sleep-modal">
+        <div class="modal-card">
+            <h3 style="font-family:var(--font-head);margin-bottom:16px;color:var(--on-surface)">Sleep Timer</h3>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                <button class="btn-ghost sleep-opt" data-minutes="15" style="padding:10px">15m</button>
+                <button class="btn-ghost sleep-opt" data-minutes="30" style="padding:10px">30m</button>
+                <button class="btn-ghost sleep-opt" data-minutes="60" style="padding:10px">1h</button>
+                <button class="btn-ghost sleep-opt" data-minutes="0" style="padding:10px;grid-column:span 3">Turn Off</button>
+            </div>
+            <button id="sleep-modal-close" style="width:100%;margin-top:20px;font-weight:700;color:var(--primary)">CANCEL</button>
+        </div>
+    </div>
+
+    <script src="/app.js?v=41"></script>
     <script>
-      // Register PWA service worker
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-          .then(() => console.log('✅ PWA Service Worker registered'))
-          .catch(err => console.log('SW registration failed:', err));
+        navigator.serviceWorker.register('/sw.js').then(() => console.log('✅ Registered'));
       }
     </script>
 </body>

@@ -17,18 +17,19 @@ async function downloadSong(songName, artistName, directUrl = null) {
     '-m', 'yt_dlp',
     '--extract-audio',
     '--audio-format', 'm4a',
-    '-o', outputPath,
-    directUrl ? directUrl : `ytsearch1:${query}`
+    '--no-playlist'
   ];
 
+  const ffmpegLocation = process.env.FFMPEG_LOCATION;
+  if (ffmpegLocation) {
+    args.push('--ffmpeg-location', ffmpegLocation);
+  }
+
+  args.push('-o', outputPath, directUrl ? directUrl : `ytsearch1:${query}`);
+
   return new Promise((resolve, reject) => {
-    if (directUrl) {
-        console.log(`🚀 Downloading from direct link: ${directUrl}`);
-    } else {
-        console.log(`🚀 Searching & Downloading: ${songName} by ${artistName}`);
-    }
-    
-    const child = spawn('python', args);
+    console.log(`🚀 yt-dlp args: ${args.join(' ')}`);
+    const child = spawn('python3', args);
 
     child.stdout.on('data', (data) => {
       const output = data.toString();
@@ -39,8 +40,10 @@ async function downloadSong(songName, artistName, directUrl = null) {
     });
 
     child.stderr.on('data', (data) => {
-      // Some logs go to stderr even if not errors
-      // console.error(`stderr: ${data}`);
+      const output = data.toString().trim();
+      if (output) {
+        console.error(`stderr: ${output}`);
+      }
     });
 
     child.on('close', (code) => {

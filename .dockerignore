@@ -1,12 +1,20 @@
-.gcloudignore
-.git
-.gitignore
 node_modules
 **/node_modules
-.stitch-mcp
+.git
+.gitignore
+.gcloudignore
 .env
 **/ .env
-backend/cache
-backend/downloads
+backend/cache/*
+backend/downloads/*
 *.md
+docs/
+openspec/
+.agent/
+.gemini/
+.opencode/
+.stitch-mcp/
+package-lock.json
 get_session.js
+Dockerfile
+deploy.sh

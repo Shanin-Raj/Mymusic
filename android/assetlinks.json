@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.run.asia_south1.music_vault_767870933282.twa",
+        "sha256_cert_fingerprints": ["38:DE:8C:3A:3A:07:43:96:FB:5A:51:D6:AD:BC:76:3D:53:84:33:8C:EE:DD:A3:91:26:FB:0B:C7:A5:9D:85:BA"]
+      }
+    }]

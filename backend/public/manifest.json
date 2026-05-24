@@ -4,7 +4,7 @@
   "description": "Your private music streaming vault — powered by Telegram",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#121414",
+  "background_color": "#000000",
   "theme_color": "#1DB954",
   "orientation": "portrait-primary",
   "categories": ["music", "entertainment"],
@@ -33,5 +33,13 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.musicvault.twa",
+      "url": "https://music-vault-767870933282.asia-south1.run.app/.well-known/assetlinks.json"
+    }
+  ],
+  "prefer_related_applications": true
 }

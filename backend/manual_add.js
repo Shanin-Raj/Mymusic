@@ -1,3 +1,5 @@
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 const { downloadSong } = require('./downloader');
 const { uploadToTelegram } = require('./telegram');
 const { db } = require('./firebase');
@@ -18,8 +20,12 @@ function getYTMetadata(url) {
     ];
     const result = spawnSync('python', args, { encoding: 'utf8' });
     if (result.status === 0 && result.stdout) {
-        const [name, artist, image] = result.stdout.trim().split('|');
-        return { name, artist, image };
+        const lines = result.stdout.split('\n');
+        const metaLine = lines.find(l => l.includes('|'));
+        if (metaLine) {
+            const [name, artist, image] = metaLine.trim().split('|');
+            return { name, artist, image };
+        }
     }
     return null;
 }

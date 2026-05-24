@@ -1,24 +1,42 @@
-FROM node:20-slim
+# Stage 1: Runtime
+FROM node:22-slim
 
+# Install system dependencies for music processing
+# We install python3, ffmpeg, and curl
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    curl \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yt-dlp
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp
+
+# Set working directory
 WORKDIR /app
 
-# Copy package files from root
+# Copy package files and install dependencies
 COPY package*.json ./
+RUN npm ci --production --silent || npm install --production --silent
 
-# Install dependencies
-RUN npm ci --production 2>/dev/null || npm install --production
-
-# Copy backend source
+# Copy application source
 COPY backend/ ./backend/
 
-# Create cache directory
-RUN mkdir -p /app/backend/cache
+# Create necessary directories for cache and downloads
+RUN mkdir -p /app/backend/cache /app/backend/downloads && \
+    chmod -R 777 /app/backend/cache /app/backend/downloads
 
-# Set working directory to backend
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Change working directory to backend for execution
 WORKDIR /app/backend
 
-# Expose port (Cloud Run sets PORT env var)
+# Expose port
 EXPOSE 8080
 
-# Start the server
+# Start the application
 CMD ["node", "server.js"]
