@@ -9,8 +9,18 @@ const { spawnSync } = require('child_process');
 // Helper to get metadata from YT link using yt-dlp
 function getYTMetadata(url) {
     console.log('📡 Extracting metadata from YouTube...');
-    const args = [ '-m', 'yt_dlp', '--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', url ];
-    const result = spawnSync('python3', args, { encoding: 'utf8' });
+    
+    // Attempt 1: Run yt-dlp directly
+    let result = spawnSync('yt-dlp', ['--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', url], { encoding: 'utf8' });
+    
+    // Fallback: If direct execution failed, run python -m yt_dlp
+    if (result.error || result.status !== 0) {
+        console.log('⚠️ yt-dlp direct execution failed, trying python fallback...');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        const args = [ '-m', 'yt_dlp', '--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', url ];
+        result = spawnSync(pythonCmd, args, { encoding: 'utf8' });
+    }
+
     if (result.status === 0 && result.stdout) {
         const lines = result.stdout.split('\n');
         const metaLine = lines.find(l => l.includes('|'));

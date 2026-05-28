@@ -16,3 +16,8 @@ backend/.env
 *.log
 *.md
 get_session.js
+flutter_app/
+.gemini/
+.idea/
+.opencode/
+Fixerror_proof/

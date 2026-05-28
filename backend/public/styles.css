@@ -33,7 +33,7 @@
 
 /* Base Styles */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+html { font-size: 16px; -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; overscroll-behavior-y: none; }
 body {
   font-family: var(--font-body);
   background: var(--bg);
@@ -41,6 +41,7 @@ body {
   overflow-x: hidden;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 /* Light Mode theme override when dark-mode is not active */
 body:not(.dark-mode) {

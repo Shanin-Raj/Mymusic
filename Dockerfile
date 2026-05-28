@@ -23,6 +23,7 @@ RUN npm ci --production --silent || npm install --production --silent
 
 # Copy application source
 COPY backend/ ./backend/
+COPY images/ /app/images/
 
 # Create necessary directories for cache and downloads
 RUN mkdir -p /app/backend/cache /app/backend/downloads && \

@@ -1,19 +1,13 @@
 # android-twa-shell Specification
 
 ## Purpose
-TBD - created by archiving change migrate-and-android-convert. Update Purpose after archive.
+This capability was previously used for the TWA shell. It has been replaced by the native Flutter application (see `flutter-native-app`).
+
 ## Requirements
-### Requirement: TWA Native Handshake
-The system SHALL provide a native-to-web verification mechanism using the Digital Asset Links protocol on the current production domain.
+### Requirement: TWA Native Handshake (REMOVED)
+**Reason**: The application is no longer a PWA wrapped in a Trusted Web Activity. It is now a fully native Flutter application.
+**Migration**: Remove the `.well-known/assetlinks.json` verification dependency for the Android client. The Flutter app will communicate directly with APIs.
 
-#### Scenario: Verification request
-- **WHEN** the Android OS requests the `/.well-known/assetlinks.json` file from the production URL
-- **THEN** the server SHALL return a valid JSON object containing the SHA256 fingerprint of the app's signing certificate
-
-### Requirement: Full-Screen Native Mode
-The system SHALL support launching in a native "Standalone" mode that removes all browser chrome (URL bars, navigation buttons) when opened from the Android home screen.
-
-#### Scenario: App Launch
-- **WHEN** the user taps the app icon on an Android device
-- **THEN** the system SHALL load the PWA in a full-screen view identical to a native application
-
+### Requirement: Full-Screen Native Mode (REMOVED)
+**Reason**: Replaced by native Flutter rendering.
+**Migration**: The Flutter engine inherently manages the UI without browser chrome. Remove TWA `manifest.json` configurations related to display modes.

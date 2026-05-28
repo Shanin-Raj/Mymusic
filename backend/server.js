@@ -26,21 +26,102 @@ if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 async function initTelegram() {
     console.log('🔄 Initializing Telegram...');
     try {
-        if (!apiId || !apiHash) {
-            console.error('❌ Missing TELEGRAM_API_ID or TELEGRAM_API_HASH');
-            return;
-        }
-        tgClient = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5, useWSS: false });
+        await ensureTgConnected();
+        console.log('✅ Telegram initialized and ready');
+    } catch (err) { console.error('❌ Telegram failed:', err); }
+}
+
+async function ensureTgConnected() {
+    if (!apiId || !apiHash) {
+        throw new Error('Telegram credentials not configured');
+    }
+    if (!tgClient) {
+        tgClient = new TelegramClient(stringSession, apiId, apiHash, { 
+            connectionRetries: 10, 
+            useWSS: false,
+            autoReconnect: true,
+            connectionTimeout: 10000 
+        });
+    }
+    if (!tgClient.connected) {
+        console.log('📡 [Server] Connecting/Reconnecting global Telegram client...');
         await tgClient.start({ botAuthToken: botToken });
         tgReady = true;
-        console.log('✅ Telegram connected');
-    } catch (err) { console.error('❌ Telegram failed:', err); }
+    }
 }
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/cache', express.static(CACHE_DIR));
+
+// Resolve the images directory robustly (look for sibling folder first, then internal backend folder)
+let IMAGES_DIR = path.join(__dirname, '../images');
+try {
+    if (!fs.existsSync(IMAGES_DIR) || fs.readdirSync(IMAGES_DIR).filter(file => ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(path.extname(file).toLowerCase())).length === 0) {
+        IMAGES_DIR = path.join(__dirname, 'images');
+    }
+} catch (e) {
+    IMAGES_DIR = path.join(__dirname, 'images');
+}
+if (!fs.existsSync(IMAGES_DIR)) {
+    fs.mkdirSync(IMAGES_DIR, { recursive: true });
+}
+app.use('/images', express.static(IMAGES_DIR));
+
+app.get('/api/images', (req, res) => {
+    try {
+        if (fs.existsSync(IMAGES_DIR)) {
+            const files = fs.readdirSync(IMAGES_DIR).filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+            });
+            const imageUrls = files.map(file => getAbsoluteImageUrl(req, `/images/${file}`));
+            return res.json({ images: imageUrls });
+        }
+        res.json({ images: [] });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to list images: ' + err.message });
+    }
+});
+
+
+
+// Helper function to resolve a stable random cover image from files in d:/music/images
+function getRandomCoverImage(idSeed) {
+    try {
+        if (fs.existsSync(IMAGES_DIR)) {
+            const files = fs.readdirSync(IMAGES_DIR).filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+            });
+            if (files.length > 0) {
+                // Stable index based on input string hash code
+                let hash = 0;
+                const seedStr = String(idSeed || '');
+                for (let i = 0; i < seedStr.length; i++) {
+                    hash = seedStr.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const index = Math.abs(hash) % files.length;
+                return `/images/${files[index]}`;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to read images directory:', err);
+    }
+    return null;
+}
+
+// Helper to make a relative path absolute
+function getAbsoluteImageUrl(req, relativePath) {
+    if (!relativePath) return '';
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+        return relativePath;
+    }
+    const host = req.get('host');
+    const protocol = req.protocol;
+    return `${protocol}://${host}${relativePath}`;
+}
 
 // Android TWA Trust Handshake
 app.get('/.well-known/assetlinks.json', (req, res) => {
@@ -115,7 +196,20 @@ app.delete('/api/songs/:id', async (req, res) => {
 });
 
 app.get('/api/songs', async (req, res) => {
-    try { const songs = await getLibrary(); res.json({ songs, total: songs.length }); }
+    try {
+        const songs = await getLibrary();
+        const updatedSongs = songs.map(song => {
+            let img = song.image;
+            if (!img || img === '') {
+                img = getRandomCoverImage(song.id || song.name);
+            }
+            return {
+                ...song,
+                image: getAbsoluteImageUrl(req, img)
+            };
+        });
+        res.json({ songs: updatedSongs, total: songs.length });
+    }
     catch (err) { res.status(500).json({ error: true, message: 'Library failed' }); }
 });
 
@@ -126,9 +220,7 @@ app.get('/api/stream/:id', async (req, res) => {
         const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
         if (fs.existsSync(cacheFile)) return streamFile(cacheFile, req, res);
         
-        if (!tgReady) {
-            return res.status(503).json({ error: true, type: 'BUSY', message: 'Telegram client is not ready' });
-        }
+        await ensureTgConnected();
 
         const downloadPromise = (async () => {
             const peer = await tgClient.getInputEntity(channelId);
@@ -186,7 +278,7 @@ app.get('/api/precache/:id', async (req, res) => {
         const song = await getSongById(req.params.id);
         const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
         if (fs.existsSync(cacheFile)) return res.json({ status: 'ok' });
-        if (!tgReady) return res.status(503).send();
+        await ensureTgConnected();
         const peer = await tgClient.getInputEntity(channelId);
         const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
         const buffer = await tgClient.downloadMedia(messages.messages[0].media, {});
@@ -200,18 +292,54 @@ app.get('/api/playlists', async (req, res) => {
         const snapshot = await db.collection('playlists').get();
         const playlists = [];
         snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
-        res.json({ playlists });
+        
+        const updatedPlaylists = playlists.map(pl => {
+            let img = pl.image;
+            if (!img || img === '') {
+                img = getRandomCoverImage(pl.id || pl.name);
+            }
+            return {
+                ...pl,
+                image: getAbsoluteImageUrl(req, img)
+            };
+        });
+        res.json({ playlists: updatedPlaylists });
     } catch (err) { res.status(500).json({ error: 'Failed to fetch playlists' }); }
 });
 
 app.post('/api/playlists', async (req, res) => {
     try {
-        const { name } = req.body;
+        const { name, image } = req.body;
         if (!name) throw new Error('Name is required');
         const id = 'pl-' + Date.now();
-        const playlist = { id, name, songs: [], created_at: new Date().toISOString() };
+        
+        let storedImage = image || '';
+        if (storedImage.includes('/images/')) {
+            const parts = storedImage.split('/images/');
+            storedImage = `/images/${parts[parts.length - 1]}`;
+        }
+
+        const playlist = { 
+            id, 
+            name, 
+            songs: [], 
+            image: storedImage,
+            created_at: new Date().toISOString() 
+        };
         await db.collection('playlists').doc(id).set(playlist);
-        res.json({ status: 'ok', playlist });
+        
+        let plImg = playlist.image;
+        if (!plImg || plImg === '') {
+            plImg = getRandomCoverImage(id || name);
+        }
+        
+        res.json({
+            status: 'ok',
+            playlist: {
+                ...playlist,
+                image: getAbsoluteImageUrl(req, plImg)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -236,12 +364,35 @@ app.get('/api/playlists/:id', async (req, res) => {
         if (!doc.exists) return res.status(404).json({ error: 'Not found' });
         const playlist = doc.data();
         const songs = [];
-        for (const sid of playlist.songs) {
-            const sdoc = await db.collection('songs').doc(sid).get();
-            if (sdoc.exists) songs.push(sdoc.data());
+        if (playlist.songs && playlist.songs.length > 0) {
+            const docRefs = playlist.songs.map(sid => db.collection('songs').doc(sid));
+            const sdocs = await db.getAll(...docRefs);
+            for (const sdoc of sdocs) {
+                if (sdoc.exists) {
+                    let song = sdoc.data();
+                    let img = song.image;
+                    if (!img || img === '') {
+                        img = getRandomCoverImage(song.id || song.name);
+                    }
+                    songs.push({
+                        ...song,
+                        image: getAbsoluteImageUrl(req, img)
+                    });
+                }
+            }
         }
-        res.json({ ...playlist, songs });
-    } catch (err) { res.status(500).json({ error: 'Failed to fetch playlist' }); }
+        
+        let plImg = playlist.image;
+        if (!plImg || plImg === '') {
+            plImg = getRandomCoverImage(playlist.id || playlist.name);
+        }
+        
+        res.json({
+            ...playlist,
+            image: getAbsoluteImageUrl(req, plImg),
+            songs
+        });
+    } catch (err) { res.status(500).json({ error: 'Failed to fetch playlist: ' + err.message }); }
 });
 
 app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {

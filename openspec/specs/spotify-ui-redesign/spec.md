@@ -4,18 +4,18 @@
 TBD - created by archiving change design-spotify-ui. Update Purpose after archive.
 ## Requirements
 ### Requirement: Spotify Brand Color Palette
-The system SHALL utilize a high-contrast dark theme centered around **Spotify Green (#1FDF64)** for primary actions and **Spotify Black (#191414)** for base backgrounds.
+The system SHALL utilize a high-contrast dark theme centered around **Spotify Green (#1FDF64)** for primary actions and **Spotify Black (#191414)** for base backgrounds, incorporating the specific gradient structures and color tokens provided by the Spotify-Clone widgets.
 
 #### Scenario: Active state styling
 - **WHEN** an element is in an active or selected state
-- **THEN** it SHALL be colored with #1FDF64
+- **THEN** it SHALL be colored with #1FDF64 and match the clone's active state styling.
 
 ### Requirement: Platform-Native Typography
-The system SHALL implement a platform-native sans-serif font stack to ensure maximum legibility and integration consistency across iOS, Android, and Web.
+The system SHALL implement Google Fonts' Montserrat typeface globally as the application's geometric font structure to provide a premium "Spotify Mix" aesthetic. All typography sizes and weights (titles, headers, body, metadata) SHALL be scaled up to match webapp standards for improved readability.
 
 #### Scenario: Font rendering
 - **WHEN** the application is loaded on a device
-- **THEN** the text SHALL render using the default system sans-serif font (e.g., San Francisco on iOS, Roboto on Android)
+- **THEN** the text SHALL render using Montserrat from the Google Fonts package, displaying at the scaled-up sizes specified in the visual redesign
 
 ### Requirement: Simplified "Like" Interaction
 The system SHALL replace the heart icon with a **"+" icon** for the "Like" feature. Upon selection, the system SHALL display a confirmation toast.
@@ -25,11 +25,11 @@ The system SHALL replace the heart icon with a **"+" icon** for the "Like" featu
 - **THEN** the icon SHALL toggle its active state and the system SHALL display a message: "Added to Your Library"
 
 ### Requirement: Immersive "Now Playing" View
-The system SHALL feature a centered artwork card with a **4px corner radius** (small devices) or **8px corner radius** (large devices) on a dark gradient background.
+The system SHALL feature a centered artwork card with a **4px corner radius** (small devices) or **8px corner radius** (large devices) on a dark gradient background, matching the layout and aesthetic of the Spotify-Clone's player widgets.
 
 #### Scenario: Viewing active track
 - **WHEN** the user opens the "Now Playing" screen
-- **THEN** the artwork SHALL be the primary visual focus, perfectly centered without cropping or overlays
+- **THEN** the artwork SHALL be the primary visual focus, perfectly centered without cropping or overlays, rendering with the exact margins and padding defined in the clone widgets.
 
 ### Requirement: Essential Playback Controls
 The system SHALL provide a minimalist and intuitive control set consisting of **Skip Previous**, **Play/Pause**, and **Skip Next** buttons.

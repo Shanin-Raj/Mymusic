@@ -348,8 +348,24 @@ function updateMediaSession(song) {
     navigator.mediaSession.setActionHandler('previoustrack', () => playPrev()); 
     navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
     
-    // Position state support
-    if ('setPositionState' in navigator.mediaSession && isFinite(audio.duration)) {
+    try {
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime && isFinite(details.seekTime)) {
+          audio.currentTime = details.seekTime;
+          updateMediaSessionPositionState();
+        }
+      });
+    } catch (error) {
+      console.log('MediaSession "seekto" not supported');
+    }
+    
+    updateMediaSessionPositionState();
+  }
+}
+
+function updateMediaSessionPositionState() {
+  if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+    if (isFinite(audio.duration) && isFinite(audio.currentTime) && isFinite(audio.playbackRate)) {
       navigator.mediaSession.setPositionState({
         duration: audio.duration,
         playbackRate: audio.playbackRate,

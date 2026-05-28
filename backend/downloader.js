@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,24 +12,38 @@ async function downloadSong(songName, artistName, directUrl = null) {
   const fileName = `${songName.replace(/[/\\?%*:|"<>]/g, '-')}.m4a`;
   const outputPath = path.join(outputDir, fileName);
 
-  // Use python -m yt_dlp to ensure it's found
-  const args = [
-    '-m', 'yt_dlp',
+  const baseArgs = [
     '--extract-audio',
     '--audio-format', 'm4a',
-    '--no-playlist'
+    '--no-playlist',
+    '--js-runtimes', 'nodejs'
   ];
 
   const ffmpegLocation = process.env.FFMPEG_LOCATION;
   if (ffmpegLocation) {
-    args.push('--ffmpeg-location', ffmpegLocation);
+    baseArgs.push('--ffmpeg-location', ffmpegLocation);
   }
 
-  args.push('-o', outputPath, directUrl ? directUrl : `ytsearch1:${query}`);
+  baseArgs.push('-o', outputPath, directUrl ? directUrl : `ytsearch1:${query}`);
+
+  // Determine whether to run yt-dlp directly or via python module
+  let cmd = 'yt-dlp';
+  let args = [...baseArgs];
+
+  try {
+    const check = spawnSync('yt-dlp', ['--version']);
+    if (check.status !== 0) {
+      throw new Error('yt-dlp returned non-zero status');
+    }
+  } catch (err) {
+    console.log('⚠️ yt-dlp direct command not available, falling back to python module...');
+    cmd = process.platform === 'win32' ? 'python' : 'python3';
+    args = ['-m', 'yt_dlp', ...baseArgs];
+  }
 
   return new Promise((resolve, reject) => {
-    console.log(`🚀 yt-dlp args: ${args.join(' ')}`);
-    const child = spawn('python3', args);
+    console.log(`🚀 Spawning: ${cmd} ${args.join(' ')}`);
+    const child = spawn(cmd, args);
 
     child.stdout.on('data', (data) => {
       const output = data.toString();

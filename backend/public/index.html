@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=41">
+    <link rel="stylesheet" href="/styles.css?v=42">
 </head>
 <body>
 
@@ -41,6 +41,15 @@
     <!-- APP SHELL                                   -->
     <!-- ═══════════════════════════════════════════ -->
     <div id="app-shell" class="app-shell hidden">
+        <!-- Update notification toast -->
+        <div id="update-toast" class="hidden" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:999999;background:var(--primary);color:#000;padding:12px 24px;border-radius:var(--radius-full);display:flex;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-weight:700;animation:slideDown 0.4s ease;">
+            <span>New Version Available</span>
+            <button onclick="refreshApp()" style="background:#000;color:var(--primary);padding:6px 16px;border-radius:var(--radius-full);font-size:12px;text-transform:uppercase;">Update</button>
+        </div>
+        
+        <style>
+          @keyframes slideDown { from { transform: translate(-50%, -100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        </style>
 
         <!-- ══════ HOME FEED ══════ -->
         <div id="screen-home" class="screen active">
@@ -445,10 +454,38 @@
         </div>
     </div>
 
-    <script src="/app.js?v=41"></script>
+    <script src="/app.js?v=42"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then(() => console.log('✅ Registered'));
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('✅ Registered');
+          
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New content is available; please refresh.
+                showUpdateNotification();
+              }
+            });
+          });
+        });
+
+        // Check if there's already a waiting worker on load
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg.waiting) {
+            showUpdateNotification();
+          }
+        });
+      }
+
+      function showUpdateNotification() {
+        const updateBtn = document.querySelector('#update-toast');
+        if (updateBtn) updateBtn.classList.remove('hidden');
+      }
+
+      function refreshApp() {
+        window.location.reload();
       }
     </script>
 </body>

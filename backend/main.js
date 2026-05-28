@@ -1,3 +1,5 @@
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 const { getPlaylistTracks } = require('./spotify');
 const { downloadSong } = require('./downloader');
 const { uploadToTelegram } = require('./telegram');

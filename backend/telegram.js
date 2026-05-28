@@ -42,31 +42,70 @@ async function ensureConnected() {
 }
 
 async function uploadToTelegram(filePath, metadata) {
-    await ensureConnected();
+    console.log('📡 [Telegram] Preparing fresh connection...');
+    if (!apiId || !apiHash) {
+        throw new Error('Telegram credentials not configured');
+    }
+    
+    // Always spawn a fresh client to prevent stale socket hangs on Cloud Run
+    const freshClient = new TelegramClient(stringSession, apiId, apiHash, {
+        connectionRetries: 3,
+        useWSS: false,
+        autoReconnect: false, // Serverless request is short-lived, no auto-reconnect needed
+        connectionTimeout: 8000,
+    });
 
     try {
-        const result = await client.sendFile(destination, { 
+        console.log('📡 [Telegram] Connecting...');
+        await freshClient.start({ botAuthToken: botToken });
+        console.log('✅ [Telegram] Connected successfully');
+
+        console.log('⏳ [Telegram] Uploading file...');
+        const result = await freshClient.sendFile(destination, { 
             file: filePath,
             caption: `🎵 **${metadata.name}**\n👤 ${metadata.artist}\n💿 ${metadata.album}`,
-            workers: 1, // Use single worker for more stable uploads on weak connections
+            workers: 1,
         });
         
-        console.log('File uploaded to Telegram successfully');
+        console.log('✅ [Telegram] File uploaded successfully');
         return result.id; 
     } catch (err) {
-        console.error('Error uploading to Telegram:', err);
+        console.error('❌ [Telegram] Error during fresh connection/upload:', err);
         throw err;
+    } finally {
+        try {
+            console.log('📡 [Telegram] Disconnecting and cleaning up resources...');
+            await freshClient.disconnect();
+            await freshClient.destroy();
+        } catch (disErr) {
+            console.warn('[Telegram] Disconnect error (ignored):', disErr.message);
+        }
     }
 }
 
 async function deleteFromTelegram(messageId) {
-    await ensureConnected();
+    if (!apiId || !apiHash) return;
+    
+    const freshClient = new TelegramClient(stringSession, apiId, apiHash, {
+        connectionRetries: 3,
+        useWSS: false,
+        autoReconnect: false,
+        connectionTimeout: 8000,
+    });
+
     try {
-        await client.deleteMessages(destination, [messageId], { revoke: true });
+        await freshClient.start({ botAuthToken: botToken });
+        await freshClient.deleteMessages(destination, [messageId], { revoke: true });
         console.log(`Successfully deleted message ${messageId} from Telegram`);
     } catch (err) {
         console.error(`Error deleting message ${messageId} from Telegram:`, err);
-        // Don't throw here, we still want to delete from Firestore even if TG fails
+    } finally {
+        try {
+            await freshClient.disconnect();
+            await freshClient.destroy();
+        } catch (disErr) {
+            // ignore
+        }
     }
 }
 
