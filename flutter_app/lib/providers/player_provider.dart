@@ -75,7 +75,7 @@ class PlayerProvider with ChangeNotifier {
   Future<void> playSong(Map<String, dynamic> song, List<dynamic> playlist) async {
     final systemItem = MediaItem(
       id: song['id'].toString(),
-      album: 'Sonic Vault',
+      album: 'MixTape',
       title: song['name'] ?? 'Unknown',
       artist: song['artist'] ?? 'Unknown',
       artUri: Uri.parse(song['image'] ?? 'https://via.placeholder.com/300'),
@@ -117,7 +117,7 @@ class PlayerProvider with ChangeNotifier {
 
       final mediaItems = playlist.map((s) => MediaItem(
         id: s['id'].toString(),
-        album: 'Sonic Vault',
+        album: 'MixTape',
         title: s['name'] ?? 'Unknown',
         artist: s['artist'] ?? 'Unknown',
         artUri: Uri.parse(s['image'] ?? 'https://via.placeholder.com/300'),
@@ -148,7 +148,7 @@ class PlayerProvider with ChangeNotifier {
     try {
       final mediaItem = MediaItem(
         id: song['id'].toString(),
-        album: 'Sonic Vault',
+        album: 'MixTape',
         title: song['name'] ?? 'Unknown',
         artist: song['artist'] ?? 'Unknown',
         artUri: Uri.parse(song['image'] ?? 'https://via.placeholder.com/300'),
@@ -169,7 +169,7 @@ class PlayerProvider with ChangeNotifier {
 
     final systemItem = MediaItem(
       id: firstSong['id'].toString(),
-      album: 'Sonic Vault',
+      album: 'MixTape',
       title: firstSong['name'] ?? 'Unknown',
       artist: firstSong['artist'] ?? 'Unknown',
       artUri: Uri.parse(firstSong['image'] ?? 'https://via.placeholder.com/300'),
@@ -208,7 +208,7 @@ class PlayerProvider with ChangeNotifier {
     try {
       final mediaItems = shuffledList.map((s) => MediaItem(
         id: s['id'].toString(),
-        album: 'Sonic Vault',
+        album: 'MixTape',
         title: s['name'] ?? 'Unknown',
         artist: s['artist'] ?? 'Unknown',
         artUri: Uri.parse(s['image'] ?? 'https://via.placeholder.com/300'),

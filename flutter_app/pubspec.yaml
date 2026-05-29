@@ -28,9 +28,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/vinyl.jpg
     - assets/cassette.jpg
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/mixtape_logo.jpeg"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/mixtape_logo.jpeg"

@@ -66,7 +66,7 @@ class SonicVaultApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sonic Vault',
+      title: 'MixTape',
       debugShowCheckedModeBanner: false,
 
       // ── LIGHT THEME (off-white, #F5F5F7 bg) ─────────────────────────────
