@@ -41,13 +41,29 @@ class PlayerProvider with ChangeNotifier {
 
   void _init() {
     _audioHandler.appMediaItemStream.listen((item) {
-      _currentSong = item;
-      notifyListeners();
+      // Only rebuild the UI tree when the song actually changes
+      if (_currentSong?.id != item?.id) {
+        _currentSong = item;
+        notifyListeners();
+      } else {
+        _currentSong = item;
+      }
     });
 
     _audioHandler.appPlaybackStateStream.listen((state) {
+      // Only rebuild when play/pause state or processing state changes,
+      // NOT on every position/buffer update which fires many times per second
+      final oldPlaying = _playbackState.playing;
+      final oldProcessing = _playbackState.processingState;
+      final oldShuffle = _playbackState.shuffleMode;
+      final oldRepeat = _playbackState.repeatMode;
       _playbackState = state;
-      notifyListeners();
+      if (state.playing != oldPlaying ||
+          state.processingState != oldProcessing ||
+          state.shuffleMode != oldShuffle ||
+          state.repeatMode != oldRepeat) {
+        notifyListeners();
+      }
     });
 
     // Update position periodically using the internal position stream
@@ -73,7 +89,6 @@ class PlayerProvider with ChangeNotifier {
       controls: const [
         MediaControl.skipToPrevious,
         MediaControl.pause,
-        MediaControl.stop,
         MediaControl.skipToNext,
       ],
       systemActions: const {
@@ -82,7 +97,7 @@ class PlayerProvider with ChangeNotifier {
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
       },
-      androidCompactActionIndices: const [0, 1, 3],
+      androidCompactActionIndices: const [0, 1, 2],
       processingState: AudioProcessingState.buffering,
       updatePosition: Duration.zero,
     ));
@@ -168,7 +183,6 @@ class PlayerProvider with ChangeNotifier {
       controls: const [
         MediaControl.skipToPrevious,
         MediaControl.pause,
-        MediaControl.stop,
         MediaControl.skipToNext,
       ],
       systemActions: const {
@@ -177,7 +191,7 @@ class PlayerProvider with ChangeNotifier {
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
       },
-      androidCompactActionIndices: const [0, 1, 3],
+      androidCompactActionIndices: const [0, 1, 2],
       processingState: AudioProcessingState.buffering,
       updatePosition: Duration.zero,
     ));

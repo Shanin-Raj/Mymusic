@@ -8,33 +8,41 @@ class ApiService {
   // Cache variables to prevent lagging and redundant network requests
   static List<dynamic>? _cachedSongs;
   static List<dynamic>? _cachedPlaylists;
+  static Future<List<dynamic>>? _songsFuture;
+  static Future<List<dynamic>>? _playlistsFuture;
 
-  static Future<List<dynamic>> fetchSongs({bool forceRefresh = false}) async {
-    if (_cachedSongs != null && !forceRefresh) {
-      return _cachedSongs!;
+  static Future<List<dynamic>> fetchSongs({bool forceRefresh = false}) {
+    if (_songsFuture != null && !forceRefresh) {
+      return _songsFuture!;
     }
-    final response = await http.get(Uri.parse('$baseUrl/api/songs'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      _cachedSongs = data['songs'] ?? [];
-      return _cachedSongs!;
-    } else {
-      throw Exception('Failed to load songs');
-    }
+    _songsFuture = http.get(Uri.parse('$baseUrl/api/songs')).then((response) {
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _cachedSongs = data['songs'] ?? [];
+        return _cachedSongs!;
+      } else {
+        _songsFuture = null; // Reset on failure so it can retry
+        throw Exception('Failed to load songs');
+      }
+    });
+    return _songsFuture!;
   }
 
-  static Future<List<dynamic>> fetchPlaylists({bool forceRefresh = false}) async {
-    if (_cachedPlaylists != null && !forceRefresh) {
-      return _cachedPlaylists!;
+  static Future<List<dynamic>> fetchPlaylists({bool forceRefresh = false}) {
+    if (_playlistsFuture != null && !forceRefresh) {
+      return _playlistsFuture!;
     }
-    final response = await http.get(Uri.parse('$baseUrl/api/playlists'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      _cachedPlaylists = data['playlists'] ?? [];
-      return _cachedPlaylists!;
-    } else {
-      throw Exception('Failed to load playlists');
-    }
+    _playlistsFuture = http.get(Uri.parse('$baseUrl/api/playlists')).then((response) {
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _cachedPlaylists = data['playlists'] ?? [];
+        return _cachedPlaylists!;
+      } else {
+        _playlistsFuture = null; // Reset on failure so it can retry
+        throw Exception('Failed to load playlists');
+      }
+    });
+    return _playlistsFuture!;
   }
 
   static String getStreamUrl(String songId) {
@@ -57,6 +65,7 @@ class ApiService {
     );
     // Invalidate songs cache on modification
     _cachedSongs = null;
+    _songsFuture = null;
     return json.decode(response.body);
   }
 
@@ -65,6 +74,7 @@ class ApiService {
     if (response.statusCode == 200) {
       // Invalidate songs cache on modification
       _cachedSongs = null;
+      _songsFuture = null;
       return true;
     }
     return false;
@@ -81,6 +91,7 @@ class ApiService {
     );
     // Invalidate playlists cache on modification
     _cachedPlaylists = null;
+    _playlistsFuture = null;
     return json.decode(response.body);
   }
 
@@ -120,6 +131,7 @@ class ApiService {
     final response = await http.delete(Uri.parse('$baseUrl/api/playlists/$playlistId'));
     if (response.statusCode == 200) {
       _cachedPlaylists = null;
+      _playlistsFuture = null;
       return true;
     }
     return false;

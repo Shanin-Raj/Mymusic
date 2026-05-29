@@ -156,7 +156,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         controls: [
           MediaControl.skipToPrevious,
           MediaControl.pause,
-          MediaControl.stop,
           MediaControl.skipToNext,
         ],
       ));
@@ -176,7 +175,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         controls: [
           MediaControl.skipToPrevious,
           MediaControl.play,
-          MediaControl.stop,
           MediaControl.skipToNext,
         ],
       ));
@@ -350,7 +348,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     final controls = [
       MediaControl.skipToPrevious,
       if (playing) MediaControl.pause else MediaControl.play,
-      MediaControl.stop,
       MediaControl.skipToNext,
     ];
 
@@ -371,7 +368,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
       },
-      androidCompactActionIndices: const [0, 1, 3],
+      androidCompactActionIndices: const [0, 1, 2],
       processingState: mappedProcessingState,
       playing: playing,
       updatePosition: _player.position,
