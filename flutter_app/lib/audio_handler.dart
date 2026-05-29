@@ -61,12 +61,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           _currentAppMediaItem = item;
           _appMediaItemController.add(item);
           mediaItem.add(item);
+          
+          // Precache the next song immediately when the current song starts playing
+          _checkPreCache(index);
         }
-      });
-      
-      // Listen for position changes for pre-caching logic
-      _player.positionStream.listen((position) {
-        _checkPreCache(position);
       });
 
       // Update MediaItem duration when player discovers actual duration
@@ -320,22 +318,14 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  void _checkPreCache(Duration position) {
+  void _checkPreCache(int currentIndex) {
     try {
-      final duration = _player.duration;
-      if (duration == null || duration.inSeconds == 0) return;
-
-      final remaining = duration - position;
-      
-      if (remaining.inSeconds < 45) {
-        final currentIndex = _player.currentIndex;
-        if (currentIndex != null && currentIndex < _playlist.length - 1) {
-          final nextItem = queue.value[currentIndex + 1];
-          if (_preCachedId != nextItem.id) {
-            _preCachedId = nextItem.id;
-            print('📡 Pre-caching next native track: ${nextItem.title}');
-            ApiService.preCache(nextItem.id);
-          }
+      if (currentIndex < queue.value.length - 1) {
+        final nextItem = queue.value[currentIndex + 1];
+        if (_preCachedId != nextItem.id) {
+          _preCachedId = nextItem.id;
+          print('📡 Pre-caching next native track immediately: ${nextItem.title}');
+          ApiService.preCache(nextItem.id);
         }
       }
     } catch (e) {
