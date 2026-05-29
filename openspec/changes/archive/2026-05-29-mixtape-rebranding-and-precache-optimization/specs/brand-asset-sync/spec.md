@@ -13,4 +13,3 @@ The system SHALL use "MixTape" as the application name across all platform metad
 #### Scenario: Verify logo in Android APK
 - **WHEN** the Android application is installed
 - **THEN** the launcher icon SHALL show the custom green mixtape design on a black background
-

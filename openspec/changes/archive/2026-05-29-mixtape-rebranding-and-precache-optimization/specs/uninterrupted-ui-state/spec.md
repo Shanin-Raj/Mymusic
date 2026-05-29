@@ -25,4 +25,3 @@ The system SHALL NOT re-trigger network requests or reset FutureBuilders when st
 - **AND** the home view or library sliver rebuilds
 - **THEN** the song lists and carousels SHALL NOT reload, flicker, or show a progress indicator
 - **AND** the already fetched catalog data SHALL remain fully static and visible
-
