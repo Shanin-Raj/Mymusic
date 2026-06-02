@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   // Base URL - will be configurable later for Render migration
-  static String baseUrl = 'https://music-vault-767870933282.asia-south1.run.app'; // Default for local testing
+  static String baseUrl = 'https://mixtape-backend-cegu.onrender.com'; // Default for local testing
 
   // Cache variables to prevent lagging and redundant network requests
   static List<dynamic>? _cachedSongs;
