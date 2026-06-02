@@ -127,22 +127,48 @@ function getAbsoluteImageUrl(req, relativePath) {
 app.get('/.well-known/assetlinks.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
+let songsCache = null;
+let playlistsCache = null;
 
 async function getLibrary() {
+    if (songsCache) {
+        return songsCache;
+    }
+    console.log('🔥 [Firestore] Fetching all songs from DB (updating cache)...');
     const snapshot = await db.collection('songs').get();
     const songs = [];
     snapshot.forEach(doc => songs.push(doc.data()));
-    return songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
+    songsCache = songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
+    return songsCache;
 }
 
 async function getSongById(id) {
+    if (songsCache) {
+        const cached = songsCache.find(s => s.id === id);
+        if (cached) return cached;
+    }
+    console.log(`🔥 [Firestore] Fetching song detail for ${id} from DB...`);
     const doc = await db.collection('songs').doc(id).get();
     return doc.exists ? doc.data() : null;
 }
 
+async function getPlaylists() {
+    if (playlistsCache) {
+        return playlistsCache;
+    }
+    console.log('🔥 [Firestore] Fetching all playlists from DB (updating cache)...');
+    const snapshot = await db.collection('playlists').get();
+    const playlists = [];
+    snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
+    playlistsCache = playlists;
+    return playlistsCache;
+}
+
+
 app.post('/api/add-song', async (req, res) => {
     try {
         const track = await addSong(req.body);
+        songsCache = null; // Invalidate memory cache
         res.json({ status: 'ok', track });
     } catch (err) { 
         console.error('API add-song error:', err);
@@ -187,6 +213,9 @@ app.delete('/api/songs/:id', async (req, res) => {
             }
         });
         await batch.commit();
+
+        songsCache = null; // Invalidate memory cache
+        playlistsCache = null; // Invalidate memory cache
 
         res.json({ status: 'ok' });
     } catch (err) {
@@ -289,9 +318,7 @@ app.get('/api/precache/:id', async (req, res) => {
 
 app.get('/api/playlists', async (req, res) => {
     try {
-        const snapshot = await db.collection('playlists').get();
-        const playlists = [];
-        snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
+        const playlists = await getPlaylists();
         
         const updatedPlaylists = playlists.map(pl => {
             let img = pl.image;
@@ -327,6 +354,7 @@ app.post('/api/playlists', async (req, res) => {
             created_at: new Date().toISOString() 
         };
         await db.collection('playlists').doc(id).set(playlist);
+        playlistsCache = null; // Invalidate memory cache
         
         let plImg = playlist.image;
         if (!plImg || plImg === '') {
@@ -353,6 +381,7 @@ app.post('/api/playlists/:id/add', async (req, res) => {
         if (!data.songs.includes(songId)) {
             data.songs.push(songId);
             await plRef.update({ songs: data.songs });
+            playlistsCache = null; // Invalidate memory cache
         }
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -360,24 +389,56 @@ app.post('/api/playlists/:id/add', async (req, res) => {
 
 app.get('/api/playlists/:id', async (req, res) => {
     try {
-        const doc = await db.collection('playlists').doc(req.params.id).get();
-        if (!doc.exists) return res.status(404).json({ error: 'Not found' });
-        const playlist = doc.data();
+        let playlist = null;
+        if (playlistsCache) {
+            playlist = playlistsCache.find(p => p.id === req.params.id);
+        }
+        if (!playlist) {
+            console.log(`🔥 [Firestore] Fetching playlist detail for ${req.params.id} from DB...`);
+            const doc = await db.collection('playlists').doc(req.params.id).get();
+            if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+            playlist = doc.data();
+        }
         const songs = [];
         if (playlist.songs && playlist.songs.length > 0) {
-            const docRefs = playlist.songs.map(sid => db.collection('songs').doc(sid));
-            const sdocs = await db.getAll(...docRefs);
-            for (const sdoc of sdocs) {
-                if (sdoc.exists) {
-                    let song = sdoc.data();
-                    let img = song.image;
-                    if (!img || img === '') {
-                        img = getRandomCoverImage(song.id || song.name);
+            const missingIds = [];
+            for (const sid of playlist.songs) {
+                let found = false;
+                if (songsCache) {
+                    const cached = songsCache.find(s => s.id === sid);
+                    if (cached) {
+                        let img = cached.image;
+                        if (!img || img === '') {
+                            img = getRandomCoverImage(cached.id || cached.name);
+                        }
+                        songs.push({
+                            ...cached,
+                            image: getAbsoluteImageUrl(req, img)
+                        });
+                        found = true;
                     }
-                    songs.push({
-                        ...song,
-                        image: getAbsoluteImageUrl(req, img)
-                    });
+                }
+                if (!found) {
+                    missingIds.push(sid);
+                }
+            }
+            
+            if (missingIds.length > 0) {
+                console.log(`🔥 [Firestore] Fetching ${missingIds.length} missing songs for playlist from DB...`);
+                const docRefs = missingIds.map(sid => db.collection('songs').doc(sid));
+                const sdocs = await db.getAll(...docRefs);
+                for (const sdoc of sdocs) {
+                    if (sdoc.exists) {
+                        let song = sdoc.data();
+                        let img = song.image;
+                        if (!img || img === '') {
+                            img = getRandomCoverImage(song.id || song.name);
+                        }
+                        songs.push({
+                            ...song,
+                            image: getAbsoluteImageUrl(req, img)
+                        });
+                    }
                 }
             }
         }
@@ -404,6 +465,7 @@ app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {
         const data = doc.data();
         const updatedSongs = data.songs.filter(sid => sid !== songId);
         await plRef.update({ songs: updatedSongs });
+        playlistsCache = null; // Invalidate memory cache
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -411,6 +473,7 @@ app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {
 app.delete('/api/playlists/:id', async (req, res) => {
     try {
         await db.collection('playlists').doc(req.params.id).delete();
+        playlistsCache = null; // Invalidate memory cache
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
