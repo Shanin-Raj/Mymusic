@@ -41,7 +41,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       // Emit initial idle playback state to system stream
       playbackState.add(PlaybackState(
         controls: const [],
-        systemActions: const {},
+        systemActions: const {
+          MediaAction.play,
+          MediaAction.pause,
+          MediaAction.playPause,
+          MediaAction.skipToNext,
+          MediaAction.skipToPrevious,
+          MediaAction.seek,
+          MediaAction.stop,
+        },
         processingState: AudioProcessingState.idle,
         playing: false,
       ));
@@ -355,8 +363,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       systemActions: const {
         MediaAction.seek,
         MediaAction.playPause,
+        MediaAction.play,
+        MediaAction.pause,
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
+        MediaAction.stop,
       },
       androidCompactActionIndices: const [0, 1, 2],
       processingState: mappedProcessingState,
