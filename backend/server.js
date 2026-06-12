@@ -478,6 +478,145 @@ app.delete('/api/playlists/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET single song details
+app.get('/api/songs/:id', async (req, res) => {
+    try {
+        const song = await getSongById(req.params.id);
+        if (!song) return res.status(404).json({ error: 'Song not found' });
+        let img = song.image;
+        if (!img || img === '') {
+            img = getRandomCoverImage(song.id || song.name);
+        }
+        res.json({
+            ...song,
+            image: getAbsoluteImageUrl(req, img)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET server time for sync compensation
+app.get('/api/time', (req, res) => {
+    res.json({ time: Date.now() });
+});
+
+// Helper: Generate a unique short Room ID
+function generateRoomId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 5; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+// POST create a room
+app.post('/api/rooms', async (req, res) => {
+    try {
+        let roomId;
+        let docRef;
+        let doc;
+        let attempts = 0;
+        
+        do {
+            roomId = generateRoomId();
+            docRef = db.collection('rooms').doc(roomId);
+            doc = await docRef.get();
+            attempts++;
+        } while (doc.exists && attempts < 10);
+
+        if (doc.exists) {
+            return res.status(500).json({ error: 'Failed to generate a unique room ID' });
+        }
+
+        const roomState = {
+            roomId,
+            currentSongId: '',
+            isPlaying: false,
+            position: 0,
+            updatedAt: Date.now()
+        };
+
+        await docRef.set(roomState);
+        res.json(roomState);
+    } catch (err) {
+        console.error('Create Room Failed:', err);
+        res.status(500).json({ error: 'Failed to create room: ' + err.message });
+    }
+});
+
+// GET room state
+app.get('/api/rooms/:roomId', async (req, res) => {
+    try {
+        const roomId = req.params.roomId.toUpperCase();
+        const doc = await db.collection('rooms').doc(roomId).get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+        res.json(doc.data());
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch room: ' + err.message });
+    }
+});
+
+// POST update room state
+app.post('/api/rooms/:roomId/update', async (req, res) => {
+    try {
+        const roomId = req.params.roomId.toUpperCase();
+        const { currentSongId, isPlaying, position } = req.body;
+        
+        const docRef = db.collection('rooms').doc(roomId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+
+        const updates = {
+            updatedAt: Date.now()
+        };
+        if (currentSongId !== undefined) updates.currentSongId = currentSongId;
+        if (isPlaying !== undefined) updates.isPlaying = isPlaying;
+        if (position !== undefined) updates.position = parseFloat(position);
+
+        await docRef.update(updates);
+        
+        const updatedDoc = await docRef.get();
+        res.json(updatedDoc.data());
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update room: ' + err.message });
+    }
+});
+
+// GET room stream via Server-Sent Events (SSE)
+app.get('/api/rooms/:roomId/stream', async (req, res) => {
+    const roomId = req.params.roomId.toUpperCase();
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (res.flushHeaders) res.flushHeaders();
+    
+    console.log(`📡 SSE client connected to room: ${roomId}`);
+
+    const docRef = db.collection('rooms').doc(roomId);
+    
+    const unsubscribe = docRef.onSnapshot(doc => {
+        if (doc.exists) {
+            res.write(`data: ${JSON.stringify(doc.data())}\n\n`);
+        } else {
+            res.write(`data: ${JSON.stringify({ error: 'Room deleted' })}\n\n`);
+        }
+    }, err => {
+        console.error(`SSE onSnapshot error for room ${roomId}:`, err);
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    });
+    
+    req.on('close', () => {
+        console.log(`📡 SSE client disconnected from room: ${roomId}`);
+        unsubscribe();
+    });
+});
 
 // Final catch-all middleware for SPA
 app.use((req, res) => {

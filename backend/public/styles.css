@@ -568,3 +568,43 @@ input:checked + .slider:before {
   background: var(--surface-highlight);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   LISTENING ROOM STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.sync-indicator-dot {
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  display: inline-block;
+}
+.sync-indicator-dot.pulsing {
+  animation: sync-pulse 1.8s infinite;
+}
+@keyframes sync-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(29, 185, 84, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 185, 84, 0);
+  }
+}
+
+#room-code-display {
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+#room-code-display:active {
+  background-color: var(--surface-highlight) !important;
+  transform: scale(0.95);
+}
+
+.room-input-code-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
