@@ -141,4 +141,63 @@ class ApiService {
     final response = await http.delete(Uri.parse('$baseUrl/api/playlists/$playlistId/songs/$songId'));
     return response.statusCode == 200;
   }
+
+  static Future<Map<String, dynamic>> fetchSongDetail(String id) async {
+    final response = await http.get(Uri.parse('$baseUrl/api/songs/$id'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load song detail');
+    }
+  }
+
+  static Future<int> fetchServerTime() async {
+    final response = await http.get(Uri.parse('$baseUrl/api/time'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['time'] as int;
+    } else {
+      throw Exception('Failed to fetch server time');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createRoom() async {
+    final response = await http.post(Uri.parse('$baseUrl/api/rooms'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to create room');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getRoomState(String roomId) async {
+    final response = await http.get(Uri.parse('$baseUrl/api/rooms/$roomId'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load room state');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateRoomState({
+    required String roomId,
+    required String songId,
+    required bool isPlaying,
+    required int position,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/rooms/$roomId/update'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'currentSongId': songId,
+        'isPlaying': isPlaying,
+        'position': position,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to update room state');
+    }
+  }
 }

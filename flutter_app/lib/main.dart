@@ -8,6 +8,7 @@ import 'package:sonic_vault_flutter/audio_handler.dart';
 import 'package:sonic_vault_flutter/providers/player_provider.dart';
 import 'package:sonic_vault_flutter/providers/theme_provider.dart';
 import 'package:sonic_vault_flutter/providers/playlist_provider.dart';
+import 'package:sonic_vault_flutter/providers/room_provider.dart';
 import 'package:sonic_vault_flutter/screens/main_screen.dart';
 
 late MyAudioHandler _audioHandler;
@@ -33,6 +34,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => PlayerProvider(_audioHandler)),
         ChangeNotifierProvider(create: (_) => PlaylistProvider()),
+        ChangeNotifierProvider(create: (_) => RoomProvider(_audioHandler)),
       ],
       child: const SonicVaultApp(),
     ),
