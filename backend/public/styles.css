@@ -169,9 +169,9 @@ h1, h2, h3, h4, .font-head { font-family: var(--font-head); font-weight: 700; }
 
 /* ═════ Mini Player ═════ */
 .mini-player { 
-  position: fixed; bottom: calc(var(--nav-height) + 8px); left: 8px; right: 8px; height: var(--mini-height); 
+  position: fixed; bottom: calc(var(--nav-height) + 8px + env(safe-area-inset-bottom)); left: 8px; right: 8px; height: var(--mini-height); 
   background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border); border-radius: var(--radius-md); z-index: 500; 
+  border: 1px solid var(--glass-border); border-radius: var(--radius-md); z-index: 1100; 
   display: flex; align-items: center; padding: 0 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   overflow: hidden; cursor: pointer; transition: transform 0.2s ease;
 }

@@ -13,12 +13,50 @@ let isShuffleOn = false;
 let repeatMode = 0; 
 const likedSongs = new Set(JSON.parse(localStorage.getItem('sv_liked') || '[]'));
 let _preCachedNextId = null;
+let isChangingSong = false;
 
 // Room Sync Variables
 let activeRoomId = localStorage.getItem('sv_room_id') || null;
 let clockOffset = 0;
 let isSyncingFromServer = false;
 let sseEventSource = null;
+
+function showToast(message) {
+  let toast = document.querySelector('#app-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: calc(var(--nav-height) + 80px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface-high);
+      color: var(--on-surface);
+      padding: 12px 24px;
+      border-radius: var(--radius-full);
+      z-index: 999999;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      font-weight: 600;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+      border: 1px solid var(--glass-border);
+      text-align: center;
+      white-space: nowrap;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2500);
+}
 
 // Persistent Theme Handle
 const theme = {
@@ -188,6 +226,17 @@ async function navigateToPlaylist(id) {
     } catch (e) { alert('Failed to load playlist'); }
 }
 
+function addToQueue(song) {
+  if (!currentPlaylist || currentPlaylist.length === 0) {
+    currentPlaylist = [...allSongs];
+    currentIndex = currentPlaylist.findIndex(s => s.id === (currentSong ? currentSong.id : ''));
+  }
+  
+  currentPlaylist.push(song);
+  showToast(`Added to Queue: ${song.name}`);
+  renderQueuePanel();
+}
+
 function renderTrackList(container, songs, queueContext) {
   if (!container) return;
   const isLibrary = container.id === 'library-tracks';
@@ -205,6 +254,9 @@ function renderTrackList(container, songs, queueContext) {
         <div class="track-right">
           ${isLibrary ? `<button class="icon-btn btn-song-delete" title="Delete Permanently" style="color:var(--on-surface-low); width: 32px; height: 32px;"><span class="material-symbols-rounded" style="font-size: 18px;">delete</span></button>` : ''}
           ${isPlaylist ? `<button class="icon-btn btn-song-remove-pl" title="Remove from Playlist" style="color:var(--on-surface-low); width: 32px; height: 32px;"><span class="material-symbols-rounded" style="font-size: 18px;">remove_circle_outline</span></button>` : ''}
+          <button class="icon-btn btn-add-queue" title="Add to Queue" style="color:var(--on-surface-low); width: 32px; height: 32px;">
+            <span class="material-symbols-rounded" style="font-size: 18px;">playlist_add</span>
+          </button>
           ${likedSongs.has(s.id) ? '<span class="material-symbols-rounded track-liked">favorite</span>' : ''}
           <span class="track-duration">${formatDuration(s.duration_ms)}</span>
         </div>
@@ -214,11 +266,24 @@ function renderTrackList(container, songs, queueContext) {
 
   container.querySelectorAll('.track-item').forEach(el => {
     el.addEventListener('click', (e) => {
-      if (e.target.closest('.icon-btn')) return; // Ignore if clicking remove/delete button
+      if (e.target.closest('.icon-btn')) return; // Ignore if clicking remove/delete/queue button
       const songId = el.dataset.id;
       const targetSong = songs.find(s => s.id === songId);
       if (targetSong) {
         playSong(targetSong, queueContext || songs || allSongs);
+      }
+    });
+  });
+
+  // Bind Add to Queue
+  container.querySelectorAll('.btn-add-queue').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.track-item');
+      const songId = item.dataset.id;
+      const targetSong = songs.find(s => s.id === songId) || allSongs.find(s => s.id === songId);
+      if (targetSong) {
+        addToQueue(targetSong);
       }
     });
   });
@@ -333,9 +398,17 @@ function playSong(song, playlist) {
   
   renderPlayerUI(song);
 
+  isChangingSong = true;
+  sendRoomStateUpdateDirect(song.id, true, 0);
+
   audio.src = `/api/stream/${song.id}`;
   audio.load();
   audio.play().catch(e => {
+    isChangingSong = false;
+    if (e.name === 'AbortError') {
+      console.log('Play request was interrupted by a new request or pause.');
+      return;
+    }
     console.error('Audio Play Error:', e);
     alert('Failed to play track. Telegram might be slow — please try again in a few seconds.');
   });
@@ -393,6 +466,7 @@ let _isDraggingProgress = false;
 let _nextTrackPreloaded = false;
 
 audio.addEventListener('timeupdate', () => {
+  if (isChangingSong) return;
   if (!audio.duration || !isFinite(audio.duration)) return;
   
   const remaining = audio.duration - audio.currentTime;
@@ -421,6 +495,7 @@ audio.addEventListener('playing', () => {
   isPlaying = true;
   const playIcons = document.querySelectorAll('.material-symbols-rounded');
   playIcons.forEach(i => { if (i.textContent === 'play_arrow' && (i.closest('#btn-play') || i.closest('#mini-play'))) i.textContent = 'pause'; });
+  isChangingSong = false;
   sendRoomStateUpdate();
 });
 audio.addEventListener('pause', () => { 
@@ -471,13 +546,18 @@ function triggerPreCacheNext() {
 }
 
 function bindPlayerControls() {
-  document.querySelector('#btn-play')?.addEventListener('click', () => audio.paused ? audio.play() : audio.pause());
-  document.querySelector('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); audio.paused ? audio.play() : audio.pause(); });
-  document.querySelector('#btn-next')?.addEventListener('click', playNext); 
-  document.querySelector('#mini-next')?.addEventListener('click', (e) => { e.stopPropagation(); playNext(); });
-  document.querySelector('#btn-prev')?.addEventListener('click', playPrev);
+  document.querySelector('#btn-play')?.addEventListener('click', () => { isChangingSong = false; audio.paused ? audio.play() : audio.pause(); });
+  document.querySelector('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); isChangingSong = false; audio.paused ? audio.play() : audio.pause(); });
+  document.querySelector('#btn-next')?.addEventListener('click', () => { isChangingSong = false; playNext(); }); 
+  document.querySelector('#mini-next')?.addEventListener('click', (e) => { e.stopPropagation(); isChangingSong = false; playNext(); });
+  document.querySelector('#btn-prev')?.addEventListener('click', () => { isChangingSong = false; playPrev(); });
   document.querySelector('#btn-player-back')?.addEventListener('click', () => history.back());
-  document.querySelector('#mini-player-tap')?.addEventListener('click', () => navigateTo('player'));
+  
+  // Make the entire mini-player container clickable to open the full-screen player, except when clicking the control buttons
+  document.querySelector('#mini-player')?.addEventListener('click', (e) => {
+    if (e.target.closest('.mini-controls')) return;
+    navigateTo('player');
+  });
   
   document.querySelector('#btn-shuffle')?.addEventListener('click', () => { 
     isShuffleOn = !isShuffleOn; 
@@ -941,15 +1021,9 @@ async function syncClock() {
   }
 }
 
-async function sendRoomStateUpdate() {
+async function sendRoomStateUpdateDirect(songId, playing, position) {
   if (!activeRoomId || isSyncingFromServer) return;
-  
-  const songId = currentSong ? currentSong.id : '';
-  const playing = !audio.paused;
-  const position = Math.round(audio.currentTime * 1000); // milliseconds
-
-  console.log(`📡 Sending Room Update: roomId=${activeRoomId}, songId=${songId}, playing=${playing}, pos=${position}`);
-
+  console.log(`📡 Sending Room Update Direct: roomId=${activeRoomId}, songId=${songId}, playing=${playing}, pos=${position}`);
   try {
     await fetch(`/api/rooms/${activeRoomId}/update`, {
       method: 'POST',
@@ -963,6 +1037,16 @@ async function sendRoomStateUpdate() {
   } catch (err) {
     console.error('Failed to send room update:', err);
   }
+}
+
+async function sendRoomStateUpdate() {
+  if (!activeRoomId || isSyncingFromServer || isChangingSong) return;
+  
+  const songId = currentSong ? currentSong.id : '';
+  const playing = !audio.paused;
+  const position = Math.round(audio.currentTime * 1000); // milliseconds
+
+  await sendRoomStateUpdateDirect(songId, playing, position);
 }
 
 function handleRoomSseMessage(roomState) {
