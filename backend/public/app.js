@@ -330,22 +330,72 @@ function renderTrackList(container, songs, queueContext) {
   });
 }
 
+function removeFromQueue(idx) {
+  if (!currentPlaylist || currentPlaylist.length === 0) {
+    currentPlaylist = [...allSongs];
+  }
+  
+  const removedSong = currentPlaylist[idx];
+  if (!removedSong) return;
+  
+  currentPlaylist.splice(idx, 1);
+  
+  if (idx === currentIndex) {
+    if (currentPlaylist.length === 0) {
+      audio.pause();
+      currentSong = null;
+      currentIndex = -1;
+      document.querySelector('#mini-player').classList.add('hidden');
+    } else {
+      currentIndex = currentIndex % currentPlaylist.length;
+      playSong(currentPlaylist[currentIndex], currentPlaylist);
+    }
+  } else if (idx < currentIndex) {
+    currentIndex--;
+  }
+  
+  showToast(`Removed from Queue: ${removedSong.name}`);
+  renderQueuePanel();
+  
+  if (currentSong) {
+    renderPlayerUI(currentSong);
+  }
+}
+
 function renderQueuePanel() {
   const list = document.querySelector('#queue-list'); if (!list) return;
   const queue = currentPlaylist.length ? currentPlaylist : allSongs;
-  list.innerHTML = queue.map(s => `
-    <div class="queue-item ${s.id === currentSong?.id ? 'queue-active' : ''}" data-id="${s.id}">
+  list.innerHTML = queue.map((s, idx) => `
+    <div class="queue-item ${s.id === currentSong?.id ? 'queue-active' : ''}" data-id="${s.id}" data-idx="${idx}">
       <div class="track-meta" style="flex:1">
         <div class="track-name" style="font-weight:700">${s.name}</div>
         <div class="track-artist" style="font-size:12px;color:var(--on-surface-dim)">${s.artist.split(',')[0]}</div>
       </div>
+      <button class="icon-btn btn-remove-queue" title="Remove from Queue" style="color:var(--on-surface-low); width: 32px; height: 32px; margin-right: 8px;">
+        <span class="material-symbols-rounded" style="font-size: 18px;">remove_circle_outline</span>
+      </button>
       <span class="material-symbols-rounded" style="color:var(--on-surface-low)">drag_indicator</span>
     </div>
   `).join('');
-  list.querySelectorAll('.queue-item').forEach(el => el.addEventListener('click', () => { 
-    playSongById(el.dataset.id); 
-    document.querySelector('#queue-panel').classList.add('hidden'); 
+  
+  list.querySelectorAll('.queue-item').forEach(el => el.addEventListener('click', (e) => { 
+    if (e.target.closest('.icon-btn')) return; // Ignore if clicking remove button
+    const idx = parseInt(el.dataset.idx);
+    const targetSong = queue[idx];
+    if (targetSong) {
+      playSong(targetSong, queue);
+      document.querySelector('#queue-panel').classList.add('hidden'); 
+    }
   }));
+
+  list.querySelectorAll('.btn-remove-queue').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.queue-item');
+      const idx = parseInt(item.dataset.idx);
+      removeFromQueue(idx);
+    });
+  });
 }
 
 function formatDuration(ms) { if (!ms) return '0:00'; const mins = Math.floor(ms / 60000); const secs = Math.floor((ms % 60000) / 1000); return `${mins}:${secs.toString().padStart(2, '0')}`; }

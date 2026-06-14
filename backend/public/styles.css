@@ -173,9 +173,10 @@ h1, h2, h3, h4, .font-head { font-family: var(--font-head); font-weight: 700; }
   background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border); border-radius: var(--radius-md); z-index: 1100; 
   display: flex; align-items: center; padding: 0 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  overflow: hidden; cursor: pointer; transition: transform 0.2s ease;
+  overflow: hidden; cursor: pointer;
 }
-.mini-player:active { transform: scale(0.98); }
+.mini-player:active { transform: none !important; }
+.mini-player button:active { transform: none !important; }
 .mini-content { display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; }
 .mini-art { width: 44px; height: 44px; border-radius: 4px; overflow: hidden; margin-right: 12px; background: var(--surface-dim); flex-shrink: 0; }
 .mini-info { flex: 1; min-width: 0; overflow: hidden; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; }
