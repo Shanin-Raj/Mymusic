@@ -127,30 +127,37 @@ function getAbsoluteImageUrl(req, relativePath) {
 app.get('/.well-known/assetlinks.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
-let songsCache = null;
-let lastSongsFetchTime = 0;
-let playlistsCache = null;
-let lastPlaylistsFetchTime = 0;
-const CACHE_TTL = 30000; // 30 seconds
+let songsCache = [];
+let playlistsCache = [];
+
+function listenToLibrary() {
+    console.log('🔄 [Firestore] Setting up real-time library listeners...');
+    
+    db.collection('songs').onSnapshot(snapshot => {
+        const songs = [];
+        snapshot.forEach(doc => songs.push(doc.data()));
+        songsCache = songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
+        console.log(`⚡ [Firestore] Library cache updated: ${songsCache.length} songs`);
+    }, err => {
+        console.error('❌ [Firestore] Library listener error:', err);
+    });
+
+    db.collection('playlists').onSnapshot(snapshot => {
+        const playlists = [];
+        snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
+        playlistsCache = playlists;
+        console.log(`⚡ [Firestore] Playlists cache updated: ${playlistsCache.length} playlists`);
+    }, err => {
+        console.error('❌ [Firestore] Playlists listener error:', err);
+    });
+}
 
 async function getLibrary() {
-    const now = Date.now();
-    if (songsCache && (now - lastSongsFetchTime < CACHE_TTL)) {
-        return songsCache;
-    }
-    console.log('🔥 [Firestore] Fetching all songs from DB (updating cache)...');
-    const snapshot = await db.collection('songs').get();
-    const songs = [];
-    snapshot.forEach(doc => songs.push(doc.data()));
-    songsCache = songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
-    lastSongsFetchTime = now;
     return songsCache;
 }
 
 async function getSongById(id) {
-    // Attempt to retrieve from cache first
-    const library = await getLibrary();
-    const cached = library.find(s => s.id === id);
+    const cached = songsCache.find(s => s.id === id);
     if (cached) return cached;
     
     console.log(`🔥 [Firestore] Fetching song detail for ${id} from DB...`);
@@ -159,16 +166,6 @@ async function getSongById(id) {
 }
 
 async function getPlaylists() {
-    const now = Date.now();
-    if (playlistsCache && (now - lastPlaylistsFetchTime < CACHE_TTL)) {
-        return playlistsCache;
-    }
-    console.log('🔥 [Firestore] Fetching all playlists from DB (updating cache)...');
-    const snapshot = await db.collection('playlists').get();
-    const playlists = [];
-    snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
-    playlistsCache = playlists;
-    lastPlaylistsFetchTime = now;
     return playlistsCache;
 }
 
@@ -176,7 +173,6 @@ async function getPlaylists() {
 app.post('/api/add-song', async (req, res) => {
     try {
         const track = await addSong(req.body);
-        songsCache = null; // Invalidate memory cache
         res.json({ status: 'ok', track });
     } catch (err) { 
         console.error('API add-song error:', err);
@@ -222,9 +218,6 @@ app.delete('/api/songs/:id', async (req, res) => {
         });
         await batch.commit();
 
-        songsCache = null; // Invalidate memory cache
-        playlistsCache = null; // Invalidate memory cache
-
         res.json({ status: 'ok' });
     } catch (err) {
         console.error('Delete song failed:', err);
@@ -249,33 +242,68 @@ app.get('/api/songs', async (req, res) => {
     }
     catch (err) { res.status(500).json({ error: true, message: 'Library failed' }); }
 });
+const activeDownloads = new Map();
 
-app.get('/api/stream/:id', async (req, res) => {
-    try {
-        const song = await getSongById(req.params.id);
-        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
-        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
-        if (fs.existsSync(cacheFile)) return streamFile(cacheFile, req, res);
-        
-        await ensureTgConnected();
-
-        const downloadPromise = (async () => {
+async function downloadSongFromTelegram(song) {
+    const songId = song.id;
+    const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
+    
+    // Check if the file is already fully downloaded
+    if (fs.existsSync(cacheFile) && !activeDownloads.has(songId)) {
+        return cacheFile;
+    }
+    
+    // If a download is already in progress, return the existing promise
+    if (activeDownloads.has(songId)) {
+        console.log(`ℹ️ [Telegram] Re-using active download for song ${songId}`);
+        return activeDownloads.get(songId);
+    }
+    
+    console.log(`📡 [Telegram] Starting download for song ${songId}`);
+    const downloadPromise = (async () => {
+        try {
+            await ensureTgConnected();
             const peer = await tgClient.getInputEntity(channelId);
             const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
             if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found in Telegram');
             
             const buffer = await tgClient.downloadMedia(messages.messages[0].media, {});
-            fs.writeFileSync(cacheFile, buffer);
+            
+            // Write to a temporary file first, then rename atomically to prevent corruption
+            const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
+            fs.writeFileSync(tempFile, buffer);
+            fs.renameSync(tempFile, cacheFile);
+            
             return cacheFile;
-        })();
+        } finally {
+            activeDownloads.delete(songId);
+        }
+    })();
+    
+    activeDownloads.set(songId, downloadPromise);
+    return downloadPromise;
+}
 
+app.get('/api/stream/:id', async (req, res) => {
+    try {
+        const song = await getSongById(req.params.id);
+        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
+        
+        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
+        
+        // If already cached and not currently downloading, serve immediately
+        if (fs.existsSync(cacheFile) && !activeDownloads.has(song.id)) {
+            return streamFile(cacheFile, req, res);
+        }
+        
+        const downloadPromise = downloadSongFromTelegram(song);
         const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('TIMEOUT')), 25000)
         );
 
         try {
-            await Promise.race([downloadPromise, timeoutPromise]);
-            return streamFile(cacheFile, req, res);
+            const filePath = await Promise.race([downloadPromise, timeoutPromise]);
+            return streamFile(filePath, req, res);
         } catch (err) {
             if (err.message === 'TIMEOUT') {
                 return res.status(503).json({ error: true, type: 'TIMEOUT', message: 'Telegram download timed out. Try again.' });
@@ -313,15 +341,14 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/precache/:id', async (req, res) => {
     try {
         const song = await getSongById(req.params.id);
-        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
-        if (fs.existsSync(cacheFile)) return res.json({ status: 'ok' });
-        await ensureTgConnected();
-        const peer = await tgClient.getInputEntity(channelId);
-        const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
-        const buffer = await tgClient.downloadMedia(messages.messages[0].media, {});
-        fs.writeFileSync(cacheFile, buffer);
+        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
+        
+        await downloadSongFromTelegram(song);
         res.json({ status: 'ok' });
-    } catch (e) { res.status(500).send(); }
+    } catch (e) { 
+        console.error('Precache failed:', e);
+        res.status(500).send(); 
+    }
 });
 
 app.get('/api/playlists', async (req, res) => {
@@ -362,7 +389,6 @@ app.post('/api/playlists', async (req, res) => {
             created_at: new Date().toISOString() 
         };
         await db.collection('playlists').doc(id).set(playlist);
-        playlistsCache = null; // Invalidate memory cache
         
         let plImg = playlist.image;
         if (!plImg || plImg === '') {
@@ -389,7 +415,6 @@ app.post('/api/playlists/:id/add', async (req, res) => {
         if (!data.songs.includes(songId)) {
             data.songs.push(songId);
             await plRef.update({ songs: data.songs });
-            playlistsCache = null; // Invalidate memory cache
         }
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -473,7 +498,6 @@ app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {
         const data = doc.data();
         const updatedSongs = data.songs.filter(sid => sid !== songId);
         await plRef.update({ songs: updatedSongs });
-        playlistsCache = null; // Invalidate memory cache
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -481,7 +505,6 @@ app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {
 app.delete('/api/playlists/:id', async (req, res) => {
     try {
         await db.collection('playlists').doc(req.params.id).delete();
-        playlistsCache = null; // Invalidate memory cache
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -632,6 +655,7 @@ app.use((req, res) => {
 });
 
 async function start() { 
+    listenToLibrary();
     await initTelegram();
     app.listen(PORT, () => {
         console.log(`🎵 Server listening on port ${PORT}`);
