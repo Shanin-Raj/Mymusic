@@ -267,7 +267,9 @@ async function downloadSongFromTelegram(song) {
             const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
             if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found in Telegram');
             
-            const buffer = await tgClient.downloadMedia(messages.messages[0].media, {});
+            const buffer = await tgClient.downloadMedia(messages.messages[0].media, {
+                workers: 8
+            });
             
             // Write to a temporary file first, then rename atomically to prevent corruption
             const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
