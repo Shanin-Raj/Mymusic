@@ -243,8 +243,82 @@ app.get('/api/songs', async (req, res) => {
     catch (err) { res.status(500).json({ error: true, message: 'Library failed' }); }
 });
 const activeDownloads = new Map();
+const downloadQueue = [];
+let isDownloading = false;
 
-async function downloadSongFromTelegram(song) {
+function enqueueDownload(song, priority) {
+    return new Promise((resolve, reject) => {
+        const task = { song, priority, resolve, reject };
+        if (priority === 1) {
+            // High priority (stream) goes right after the current active task (index 0)
+            if (downloadQueue.length > 0) {
+                downloadQueue.splice(1, 0, task);
+            } else {
+                downloadQueue.push(task);
+            }
+        } else {
+            downloadQueue.push(task);
+        }
+        processQueue();
+    });
+}
+
+async function processQueue() {
+    if (isDownloading || downloadQueue.length === 0) return;
+    isDownloading = true;
+    
+    const task = downloadQueue[0];
+    try {
+        const result = await performDownload(task.song);
+        task.resolve(result);
+    } catch (err) {
+        task.reject(err);
+    } finally {
+        downloadQueue.shift();
+        isDownloading = false;
+        processQueue();
+    }
+}
+
+async function performDownload(song) {
+    const songId = song.id;
+    const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
+    
+    console.log(`📡 [Telegram] Starting download for song ${songId}`);
+    await ensureTgConnected();
+    const peer = await tgClient.getInputEntity(channelId);
+    const messages = await tgClient.invoke(new Api.channels.GetMessages({ 
+        channel: peer, 
+        id: [new Api.InputMessageID({ id: song.tg_message_id })] 
+    }));
+    if (!messages.messages[0] || !messages.messages[0].media) {
+        throw new Error('Media not found in Telegram');
+    }
+    
+    const media = messages.messages[0].media;
+    let fileSize = undefined;
+    if (media.document && media.document.size) {
+        if (typeof media.document.size === 'object' && typeof media.document.size.toNumber === 'function') {
+            fileSize = media.document.size.toNumber();
+        } else {
+            fileSize = parseInt(media.document.size, 10);
+        }
+    }
+    
+    const buffer = await tgClient.downloadMedia(media, {
+        workers: 8,
+        fileSize: fileSize
+    });
+    
+    // Write to a temporary file first, then rename atomically to prevent corruption
+    const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
+    fs.writeFileSync(tempFile, buffer);
+    fs.renameSync(tempFile, cacheFile);
+    
+    return cacheFile;
+}
+
+async function downloadSongFromTelegram(song, priority = 2) {
     const songId = song.id;
     const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
     
@@ -255,34 +329,18 @@ async function downloadSongFromTelegram(song) {
     
     // If a download is already in progress, return the existing promise
     if (activeDownloads.has(songId)) {
-        console.log(`ℹ️ [Telegram] Re-using active download for song ${songId}`);
+        console.log(`ℹ️ [Telegram] Re-using active/queued download for song ${songId}`);
         return activeDownloads.get(songId);
     }
     
-    console.log(`📡 [Telegram] Starting download for song ${songId}`);
-    const downloadPromise = (async () => {
-        try {
-            await ensureTgConnected();
-            const peer = await tgClient.getInputEntity(channelId);
-            const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
-            if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found in Telegram');
-            
-            const buffer = await tgClient.downloadMedia(messages.messages[0].media, {
-                workers: 8
-            });
-            
-            // Write to a temporary file first, then rename atomically to prevent corruption
-            const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
-            fs.writeFileSync(tempFile, buffer);
-            fs.renameSync(tempFile, cacheFile);
-            
-            return cacheFile;
-        } finally {
-            activeDownloads.delete(songId);
-        }
-    })();
-    
+    console.log(`📡 [Telegram] Enqueueing download for song ${songId} (priority: ${priority})`);
+    const downloadPromise = enqueueDownload(song, priority);
     activeDownloads.set(songId, downloadPromise);
+    
+    downloadPromise.finally(() => {
+        activeDownloads.delete(songId);
+    });
+    
     return downloadPromise;
 }
 
@@ -298,7 +356,7 @@ app.get('/api/stream/:id', async (req, res) => {
             return streamFile(cacheFile, req, res);
         }
         
-        const downloadPromise = downloadSongFromTelegram(song);
+        const downloadPromise = downloadSongFromTelegram(song, 1);
         const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('TIMEOUT')), 25000)
         );
@@ -345,13 +403,8 @@ app.get('/api/precache/:id', async (req, res) => {
         const song = await getSongById(req.params.id);
         if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
         
-        // If there are any active downloads in progress, ignore precache to prevent overloading the server
-        if (activeDownloads.size > 0) {
-            console.log(`ℹ️ [Precache] Ignoring precache for song ${song.id} because another download is active`);
-            return res.status(202).json({ status: 'ignored', message: 'Download in progress' });
-        }
-        
-        await downloadSongFromTelegram(song);
+        // Enqueue with low priority (2) - it will execute automatically after any active stream downloads finish
+        await downloadSongFromTelegram(song, 2);
         res.json({ status: 'ok' });
     } catch (e) { 
         console.error('Precache failed:', e);
