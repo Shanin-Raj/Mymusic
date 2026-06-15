@@ -235,12 +235,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     try {
       if (index < 0 || index >= queue.value.length) return;
       
-      // Update media item immediately so the notification metadata is present
-      final item = queue.value[index];
-      _currentAppMediaItem = item;
-      _appMediaItemController.add(item);
-      mediaItem.add(item);
-      
       await _player.seek(Duration.zero, index: index);
       _updatePlaybackState();
     } catch (e) {
@@ -360,8 +354,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         final nextItem = queue.value[currentIndex + 1];
         if (_preCachedId != nextItem.id) {
           _preCachedId = nextItem.id;
-          print('📡 Pre-caching next native track immediately: ${nextItem.title}');
-          ApiService.preCache(nextItem.id);
+          _preCacheTimer?.cancel();
+          _preCacheTimer = Timer(const Duration(seconds: 4), () {
+            print('📡 Pre-caching next native track: ${nextItem.title}');
+            ApiService.preCache(nextItem.id);
+          });
         }
       }
     } catch (e) {
