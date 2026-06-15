@@ -343,6 +343,12 @@ app.get('/api/precache/:id', async (req, res) => {
         const song = await getSongById(req.params.id);
         if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
         
+        // If there are any active downloads in progress, ignore precache to prevent overloading the server
+        if (activeDownloads.size > 0) {
+            console.log(`ℹ️ [Precache] Ignoring precache for song ${song.id} because another download is active`);
+            return res.status(202).json({ status: 'ignored', message: 'Download in progress' });
+        }
+        
         await downloadSongFromTelegram(song);
         res.json({ status: 'ok' });
     } catch (e) { 

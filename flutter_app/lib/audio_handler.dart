@@ -28,6 +28,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   // Watchdog state
   Timer? _watchdogTimer;
+  Timer? _preCacheTimer;
   Duration _lastPosition = Duration.zero;
   int _stallCount = 0;
 
@@ -70,8 +71,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           _appMediaItemController.add(item);
           mediaItem.add(item);
           
-          // Precache the next song immediately when the current song starts playing
-          _checkPreCache(index);
+          // Delay precaching to prevent concurrent download conflicts on initial stream
+          _preCacheTimer?.cancel();
+          _preCacheTimer = Timer(const Duration(seconds: 10), () {
+            _checkPreCache(index);
+          });
         }
       });
 
@@ -203,6 +207,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> stop() async {
     try {
       _watchdogTimer?.cancel();
+      _preCacheTimer?.cancel();
       await _player.stop();
       await super.stop();
     } catch (e) {
