@@ -331,6 +331,32 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
+  @override
+  Future<void> removeQueueItem(MediaItem mediaItem) async {
+    try {
+      final index = queue.value.indexWhere((item) => item.id == mediaItem.id);
+      if (index != -1) {
+        await removeQueueItemAt(index);
+      }
+    } catch (e) {
+      debugPrint('🚨 Error in removeQueueItem(): $e');
+    }
+  }
+
+  @override
+  Future<void> removeQueueItemAt(int index) async {
+    try {
+      if (index < 0 || index >= queue.value.length) return;
+      await _playlist.removeAt(index);
+      final currentQueue = List<MediaItem>.from(queue.value);
+      currentQueue.removeAt(index);
+      queue.add(currentQueue);
+      _updatePlaybackState();
+    } catch (e) {
+      debugPrint('🚨 Error in removeQueueItemAt(): $e');
+    }
+  }
+
   void _checkPreCache(int currentIndex) {
     try {
       if (currentIndex < queue.value.length - 1) {

@@ -60,7 +60,24 @@ class QueueScreen extends StatelessWidget {
               )
             ),
             subtitle: Text(item.artist ?? '', style: const TextStyle(color: Colors.grey)),
-            trailing: isCurrent ? const Icon(Icons.bar_chart, color: Colors.green) : null,
+            trailing: isCurrent 
+                ? const Icon(Icons.bar_chart, color: Colors.green)
+                : IconButton(
+                    icon: Icon(
+                      Icons.remove_circle_outline, 
+                      color: isDark ? Colors.white54 : Colors.black54,
+                      size: 22,
+                    ),
+                    onPressed: () {
+                      player.removeFromQueueAt(index);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Removed "${item.title}" from queue'),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                  ),
           );
         },
       ),
