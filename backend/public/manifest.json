@@ -38,7 +38,7 @@
     {
       "platform": "play",
       "id": "com.musicvault.twa",
-      "url": "https://music-vault-767870933282.asia-south1.run.app/.well-known/assetlinks.json"
+      "url": "https://mymusic-ibgr.onrender.com/.well-known/assetlinks.json"
     }
   ],
   "prefer_related_applications": true
