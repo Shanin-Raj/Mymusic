@@ -22,7 +22,7 @@ async function getPlaylistTracks(url) {
             name: data.name,
             artist: data.artists?.[0]?.name || data.artist || "Unknown Artist",
             album: data.album?.name || "Unknown Album",
-            image: img,
+            image: img || null,
             duration_ms: data.duration_ms || data.duration
         }];
     }
@@ -42,7 +42,7 @@ async function getPlaylistTracks(url) {
         name: track.name,
         artist: track.artist || track.artists?.[0]?.name || "Unknown Artist",
         album: track.album?.name || "Unknown Album",
-        image: img,
+        image: img || null,
         duration_ms: track.duration_ms || track.duration
       };
     });

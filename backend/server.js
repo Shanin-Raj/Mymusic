@@ -128,10 +128,14 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
 let songsCache = null;
+let lastSongsFetchTime = 0;
 let playlistsCache = null;
+let lastPlaylistsFetchTime = 0;
+const CACHE_TTL = 30000; // 30 seconds
 
 async function getLibrary() {
-    if (songsCache) {
+    const now = Date.now();
+    if (songsCache && (now - lastSongsFetchTime < CACHE_TTL)) {
         return songsCache;
     }
     console.log('🔥 [Firestore] Fetching all songs from DB (updating cache)...');
@@ -139,21 +143,24 @@ async function getLibrary() {
     const songs = [];
     snapshot.forEach(doc => songs.push(doc.data()));
     songsCache = songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
+    lastSongsFetchTime = now;
     return songsCache;
 }
 
 async function getSongById(id) {
-    if (songsCache) {
-        const cached = songsCache.find(s => s.id === id);
-        if (cached) return cached;
-    }
+    // Attempt to retrieve from cache first
+    const library = await getLibrary();
+    const cached = library.find(s => s.id === id);
+    if (cached) return cached;
+    
     console.log(`🔥 [Firestore] Fetching song detail for ${id} from DB...`);
     const doc = await db.collection('songs').doc(id).get();
     return doc.exists ? doc.data() : null;
 }
 
 async function getPlaylists() {
-    if (playlistsCache) {
+    const now = Date.now();
+    if (playlistsCache && (now - lastPlaylistsFetchTime < CACHE_TTL)) {
         return playlistsCache;
     }
     console.log('🔥 [Firestore] Fetching all playlists from DB (updating cache)...');
@@ -161,6 +168,7 @@ async function getPlaylists() {
     const playlists = [];
     snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
     playlistsCache = playlists;
+    lastPlaylistsFetchTime = now;
     return playlistsCache;
 }
 
