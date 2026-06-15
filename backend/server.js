@@ -305,7 +305,10 @@ async function performDownload(song) {
         }
     }
     
-    const buffer = await tgClient.downloadMedia(media, {});
+    const buffer = await tgClient.downloadMedia(media, {
+        workers: 2,
+        fileSize: fileSize
+    });
     
     // Write to a temporary file first, then rename atomically to prevent corruption
     const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
@@ -355,7 +358,7 @@ app.get('/api/stream/:id', async (req, res) => {
         
         const downloadPromise = downloadSongFromTelegram(song, 1);
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('TIMEOUT')), 25000)
+            setTimeout(() => reject(new Error('TIMEOUT')), 50000)
         );
 
         try {
