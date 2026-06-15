@@ -305,10 +305,7 @@ async function performDownload(song) {
         }
     }
     
-    const buffer = await tgClient.downloadMedia(media, {
-        workers: 8,
-        fileSize: fileSize
-    });
+    const buffer = await tgClient.downloadMedia(media, {});
     
     // Write to a temporary file first, then rename atomically to prevent corruption
     const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);

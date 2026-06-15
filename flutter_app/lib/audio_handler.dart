@@ -71,11 +71,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           _appMediaItemController.add(item);
           mediaItem.add(item);
           
-          // Delay precaching to prevent concurrent download conflicts on initial stream
-          _preCacheTimer?.cancel();
-          _preCacheTimer = Timer(const Duration(seconds: 10), () {
-            _checkPreCache(index);
-          });
+          // Precache the next song immediately when the current song starts playing
+          _checkPreCache(index);
         }
       });
 
