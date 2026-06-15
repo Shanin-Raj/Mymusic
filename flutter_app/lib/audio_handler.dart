@@ -305,7 +305,25 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> updateQueue(List<MediaItem> newQueue) async {
     try {
+      // Check if the queue is identical
+      if (queue.value.length == newQueue.length) {
+        bool identical = true;
+        for (int i = 0; i < newQueue.length; i++) {
+          if (queue.value[i].id != newQueue[i].id) {
+            identical = false;
+            break;
+          }
+        }
+        if (identical) return;
+      }
+
       queue.add(newQueue);
+      
+      final wasPlaying = _player.playing;
+      if (wasPlaying) {
+        await _player.pause();
+      }
+
       await _playlist.clear();
       final sources = newQueue.map((item) => AudioSource.uri(
         Uri.parse(ApiService.getStreamUrl(item.id)),
