@@ -127,12 +127,8 @@ class PlayerProvider with ChangeNotifier {
       // Find index before updating queue to ensure we have the right context
       final index = playlist.indexWhere((s) => s['id'].toString() == song['id'].toString());
       
-      // Update queue first
-      await _audioHandler.updateQueue(mediaItems);
-      
       if (index != -1) {
-        await _audioHandler.skipToQueueItem(index);
-        await _audioHandler.play();
+        await _audioHandler.updateQueueAndPlay(mediaItems, index);
       }
     } catch (e) {
       _playbackState = PlaybackState(
@@ -215,15 +211,12 @@ class PlayerProvider with ChangeNotifier {
         duration: Duration(milliseconds: s['duration_ms'] ?? 0),
       )).toList();
 
-      // Update queue with shuffled items
-      await _audioHandler.updateQueue(mediaItems);
-      
       // Keep shuffle mode OFF because we already manually shuffled the list.
       // Enabling just_audio's shuffle on top would cause a double-shuffle mismatch.
       await _audioHandler.setShuffleMode(AudioServiceShuffleMode.none);
       
-      await _audioHandler.skipToQueueItem(0);
-      await _audioHandler.play();
+      // Update queue with shuffled items and start playing the first song atomically
+      await _audioHandler.updateQueueAndPlay(mediaItems, 0);
     } catch (e) {
       _playbackState = PlaybackState(
         playing: false,

@@ -308,13 +308,40 @@ async function performDownload(song) {
 
     // Write to a temporary file first, then rename atomically to prevent corruption
     const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
-    const tempStream = fs.createWriteStream(tempFile);
+    if (fs.existsSync(tempFile)) {
+        try { fs.unlinkSync(tempFile); } catch (e) {}
+    }
 
-    await tgClient.downloadMedia(media, tempStream);
+    await tgClient.downloadMedia(media, { outputFile: tempFile });
 
-    fs.renameSync(tempFile, cacheFile);
+    // Verify tempFile size before renaming
+    if (fs.existsSync(tempFile)) {
+        const stat = fs.statSync(tempFile);
+        if (stat.size > 1024) {
+            fs.renameSync(tempFile, cacheFile);
+            console.log(`✅ [Telegram] Downloaded and cached song ${songId} (${stat.size} bytes)`);
+            return cacheFile;
+        }
+        try { fs.unlinkSync(tempFile); } catch (e) {}
+    }
+    throw new Error('Downloaded Telegram file was empty or corrupted');
+}
 
-    return cacheFile;
+function checkAndCleanCache(filePath) {
+    if (fs.existsSync(filePath)) {
+        try {
+            const stat = fs.statSync(filePath);
+            if (stat.size < 1024) { // 1 KB
+                console.log(`⚠️ Invalid cached file size (${stat.size} bytes). Deleting: ${filePath}`);
+                fs.unlinkSync(filePath);
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+    return false;
 }
 
 async function downloadSongFromTelegram(song, priority = 2) {
@@ -322,7 +349,7 @@ async function downloadSongFromTelegram(song, priority = 2) {
     const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
     
     // Check if the file is already fully downloaded
-    if (fs.existsSync(cacheFile) && !activeDownloads.has(songId)) {
+    if (checkAndCleanCache(cacheFile) && !activeDownloads.has(songId)) {
         return cacheFile;
     }
     
@@ -367,7 +394,7 @@ app.get('/api/stream/:id', async (req, res) => {
         const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
 
         // If already cached and not currently downloading, serve immediately
-        if (fs.existsSync(cacheFile) && !activeDownloads.has(song.id)) {
+        if (checkAndCleanCache(cacheFile) && !activeDownloads.has(song.id)) {
             return streamFile(cacheFile, req, res);
         }
 

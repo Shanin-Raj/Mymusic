@@ -9,6 +9,7 @@ class AudioCacheService {
   static AudioCacheService? _instance;
   static final Set<String> _downloading = {};
   static final Set<String> _downloaded = {};
+  static final Map<String, Completer<String?>> _downloadCompleters = {};
 
   Timer? _inactivityTimer;
   static const _inactivityTimeout = Duration(minutes: 15);
@@ -55,30 +56,48 @@ class AudioCacheService {
 
   Future<String> downloadSong(String songId) async {
     if (_downloading.contains(songId)) {
-      await Future.doWhile(() => _downloading.contains(songId));
+      final completer = _downloadCompleters[songId];
+      if (completer != null) {
+        final path = await completer.future;
+        if (path != null) return path;
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
       final path = await getCachedPath(songId);
       if (path != null) return path;
+      throw Exception('Song is already downloading but cache path was not found.');
     }
 
     _downloading.add(songId);
+    final completer = Completer<String?>();
+    _downloadCompleters[songId] = completer;
+
+    final client = http.Client();
     try {
       debugPrint('Downloading song $songId...');
-      final response = await http.get(Uri.parse(ApiService.getStreamUrl(songId)));
+      final request = http.Request('GET', Uri.parse(ApiService.getStreamUrl(songId)));
+      final response = await client.send(request);
+
       if (response.statusCode == 200) {
         final dir = await _getCacheDir();
         final file = File('${dir.path}/$songId');
-        await file.writeAsBytes(response.bodyBytes);
+        final sink = file.openWrite();
+        await response.stream.pipe(sink);
+
         _downloaded.add(songId);
         debugPrint('Downloaded song $songId to ${file.path}');
+        completer.complete(file.path);
         return file.path;
       } else {
         throw Exception('Failed to download song $songId: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Download failed for $songId: $e');
+      completer.complete(null);
       rethrow;
     } finally {
+      client.close();
       _downloading.remove(songId);
+      _downloadCompleters.remove(songId);
     }
   }
 

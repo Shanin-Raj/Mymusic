@@ -59,9 +59,13 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       // This tells the OS to grant audio focus and keep the app alive in background.
       _activateAudioSession();
 
-      // Pipe player state and event streams to unified state updates
-      _player.playbackEventStream.listen((_) => _updatePlaybackState());
-      _player.playerStateStream.listen((_) => _updatePlaybackState());
+      // Pipe player playback events to update the state
+      _player.playbackEventStream.listen(
+        (_) => _updatePlaybackState(),
+        onError: (Object e, StackTrace st) {
+          debugPrint('🚨 playbackEventStream error: $e');
+        },
+      );
       
       // Sync appMediaItem and System mediaItem with current player index
       _player.currentIndexStream.listen((index) {
@@ -77,6 +81,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           // Precache the next song immediately when the current song starts playing
           _checkPreCache(index);
         }
+      }, onError: (Object e, StackTrace st) {
+        debugPrint('🚨 currentIndexStream error: $e');
       });
 
       // Update MediaItem duration when player discovers actual duration
@@ -90,6 +96,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
             mediaItem.add(updatedItem);
           }
         }
+      }, onError: (Object e, StackTrace st) {
+        debugPrint('🚨 durationStream error: $e');
       });
 
       // Handle track completion
@@ -97,6 +105,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         if (state == ProcessingState.completed) {
           skipToNext();
         }
+      }, onError: (Object e, StackTrace st) {
+        debugPrint('🚨 processingStateStream error: $e');
       });
     } catch (e) {
       debugPrint('🚨 Error in MyAudioHandler init: $e');
@@ -332,12 +342,53 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       final sources = await _buildSources(queue);
       await _playlist.addAll(sources);
 
-      // Ensure source is set
-      if (_player.audioSource != _playlist) {
-        await _player.setAudioSource(_playlist);
+      // Ensure source is set and reset to initial position/index
+      await _player.setAudioSource(_playlist, initialIndex: 0, initialPosition: Duration.zero);
+
+      if (wasPlaying) {
+        await _player.play();
       }
     } catch (e) {
       debugPrint('Error in updateQueue(): $e');
+    }
+  }
+
+  Future<void> updateQueueAndPlay(List<MediaItem> newQueue, int startIndex) async {
+    try {
+      // Check if the queue is identical
+      bool identical = queue.value.length == newQueue.length;
+      if (identical) {
+        for (int i = 0; i < newQueue.length; i++) {
+          if (queue.value[i].id != newQueue[i].id) {
+            identical = false;
+            break;
+          }
+        }
+      }
+
+      if (identical && _player.currentIndex == startIndex) {
+        if (!_player.playing) {
+          await play();
+        }
+        return;
+      }
+
+      queue.add(newQueue);
+
+      await _playlist.clear();
+      final sources = await _buildSources(newQueue);
+      await _playlist.addAll(sources);
+
+      // Atomically load playlist starting at target song index
+      await _player.setAudioSource(
+        _playlist,
+        initialIndex: startIndex,
+        initialPosition: Duration.zero,
+      );
+
+      await play();
+    } catch (e) {
+      debugPrint('Error in updateQueueAndPlay(): $e');
     }
   }
 
@@ -414,9 +465,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _replaceSource(int index, String localPath) async {
     try {
-      if (index >= 0 && index < _playlist.children.length) {
+      if (index >= 0 && index < _playlist.length) {
         final item = queue.value[index];
-        _playlist.children[index] = AudioSource.file(localPath, tag: item);
+        final newSource = AudioSource.file(localPath, tag: item);
+        await _playlist.removeAt(index);
+        await _playlist.insert(index, newSource);
       }
     } catch (e) {
       debugPrint('Error replacing source at $index: $e');
