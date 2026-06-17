@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { Writable, PassThrough } = require('stream');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const { Api } = require('telegram');
@@ -242,58 +243,130 @@ app.get('/api/songs', async (req, res) => {
     catch (err) { res.status(500).json({ error: true, message: 'Library failed' }); }
 });
 
-app.get('/api/stream/:id', async (req, res) => {
-    try {
-        const song = await getSongById(req.params.id);
-        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
-        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
-        if (fs.existsSync(cacheFile)) return streamFile(cacheFile, req, res);
-        
-        await ensureTgConnected();
+const MIME_TYPES = {
+    '.m4a': 'audio/mp4',
+    '.mp3': 'audio/mpeg',
+    '.ogg': 'audio/ogg',
+    '.opus': 'audio/ogg',
+    '.flac': 'audio/flac',
+    '.wav': 'audio/wav',
+    '.aac': 'audio/aac',
+    '.webm': 'audio/webm',
+};
 
-        const downloadPromise = (async () => {
-            const peer = await tgClient.getInputEntity(channelId);
-            const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
-            if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found in Telegram');
-            
-            const buffer = await tgClient.downloadMedia(messages.messages[0].media, {});
-            fs.writeFileSync(cacheFile, buffer);
-            return cacheFile;
-        })();
-
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('TIMEOUT')), 25000)
-        );
-
-        try {
-            await Promise.race([downloadPromise, timeoutPromise]);
-            return streamFile(cacheFile, req, res);
-        } catch (err) {
-            if (err.message === 'TIMEOUT') {
-                return res.status(503).json({ error: true, type: 'TIMEOUT', message: 'Telegram download timed out. Try again.' });
-            }
-            throw err;
-        }
-    } catch (err) { 
-        console.error('Stream failed:', err);
-        res.status(500).json({ error: true, message: 'Stream failed: ' + err.message }); 
-    }
-});
+function getMimeType(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    return MIME_TYPES[ext] || 'audio/mp4';
+}
 
 function streamFile(filePath, req, res) {
     const stat = fs.statSync(filePath);
+    const mime = getMimeType(filePath);
     const range = req.headers.range;
     if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
-        res.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': (end - start) + 1, 'Content-Type': 'audio/mp4' });
+        const chunkSize = (end - start) + 1;
+        res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize,
+            'Content-Type': mime,
+        });
         fs.createReadStream(filePath, { start, end }).pipe(res);
     } else {
-        res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': 'audio/mp4', 'Accept-Ranges': 'bytes' });
+        res.writeHead(200, {
+            'Content-Length': stat.size,
+            'Content-Type': mime,
+            'Accept-Ranges': 'bytes',
+        });
         fs.createReadStream(filePath).pipe(res);
     }
 }
+
+app.get('/api/stream/:id', async (req, res) => {
+    let downloadAborted = false;
+    try {
+        const song = await getSongById(req.params.id);
+        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
+        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
+        if (fs.existsSync(cacheFile)) return streamFile(cacheFile, req, res);
+
+        await ensureTgConnected();
+
+        const peer = await tgClient.getInputEntity(channelId);
+        const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
+        if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found in Telegram');
+
+        const media = messages.messages[0].media;
+        const fileSize = media.document?.size || 0;
+
+        // Send headers immediately so the client can start buffering
+        res.writeHead(200, {
+            'Content-Type': 'audio/mp4',
+            'Content-Length': fileSize,
+            'Accept-Ranges': 'bytes',
+        });
+
+        // Stream to both cache file and client simultaneously
+        const fileStream = fs.createWriteStream(cacheFile);
+        let downloadFinished = false;
+
+        const teeStream = new Writable({
+            write(chunk, encoding, callback) {
+                fileStream.write(chunk, encoding, (err) => {
+                    if (err) return callback(err);
+                    if (!downloadAborted && !res.writableEnded) {
+                        const canContinue = res.write(chunk, encoding);
+                        if (!canContinue) {
+                            res.once('drain', callback);
+                        } else {
+                            callback();
+                        }
+                    } else {
+                        callback();
+                    }
+                });
+            },
+            final(callback) {
+                downloadFinished = true;
+                fileStream.end();
+                if (!res.writableEnded) {
+                    res.end();
+                }
+                callback();
+            },
+            destroy(err, callback) {
+                if (!res.writableEnded) res.end();
+                callback(err);
+            }
+        });
+
+        const timeoutId = setTimeout(() => {
+            downloadAborted = true;
+            if (!res.writableEnded) res.end();
+            console.error(`Stream download timed out for ${song.id}`);
+        }, 30000);
+
+        try {
+            await tgClient.downloadMedia(media, teeStream);
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        if (!downloadFinished && !res.writableEnded) {
+            res.end();
+        }
+    } catch (err) {
+        console.error('Stream failed:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: true, message: 'Stream failed: ' + err.message });
+        } else if (!res.writableEnded) {
+            res.end();
+        }
+    }
+});
 
 app.get('/api/stats', async (req, res) => {
     try {
@@ -310,10 +383,14 @@ app.get('/api/precache/:id', async (req, res) => {
         await ensureTgConnected();
         const peer = await tgClient.getInputEntity(channelId);
         const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
-        const buffer = await tgClient.downloadMedia(messages.messages[0].media, {});
-        fs.writeFileSync(cacheFile, buffer);
+        if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found');
+        const cacheStream = fs.createWriteStream(cacheFile);
+        await tgClient.downloadMedia(messages.messages[0].media, cacheStream);
         res.json({ status: 'ok' });
-    } catch (e) { res.status(500).send(); }
+    } catch (e) {
+        console.error('Precache failed:', e.message);
+        res.status(500).send();
+    }
 });
 
 app.get('/api/playlists', async (req, res) => {

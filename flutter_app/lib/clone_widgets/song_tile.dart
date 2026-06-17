@@ -286,7 +286,7 @@ class SongTile extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(Icons.playlist_add, color: Colors.white70, size: 18),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Text(
                           'Add to Playlist',
                           style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
@@ -299,7 +299,7 @@ class SongTile extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(Icons.queue_music, color: Colors.white70, size: 18),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Text(
                           'Add to Queue',
                           style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),

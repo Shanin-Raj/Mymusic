@@ -1673,9 +1673,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                           ],
                         ),
                       );
-                      if (confirm == true && mounted) {
+                      if (!context.mounted) return;
+                      if (confirm == true) {
                         final success = await context.read<PlaylistProvider>().deletePlaylist(widget.playlistId);
-                        if (success && mounted) {
+                        if (!context.mounted) return;
+                        if (success) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Playlist deleted successfully')),
@@ -2274,7 +2276,7 @@ class FullScreenPlayer extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(isDark ? 0.6 : 0.15),
+                                color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.15),
                                 blurRadius: 48,
                                 spreadRadius: 8,
                               ),
@@ -2358,7 +2360,7 @@ class FullScreenPlayer extends StatelessWidget {
                               activeTrackColor: isDark ? Colors.white : MyColors.greenColor,
                               inactiveTrackColor: isDark ? Colors.white24 : Colors.black12,
                               thumbColor: isDark ? Colors.white : MyColors.greenColor,
-                              overlayColor: isDark ? Colors.white24 : MyColors.greenColor.withOpacity(0.12),
+                              overlayColor: isDark ? Colors.white24 : MyColors.greenColor.withValues(alpha: 0.12),
                             ),
                             child: Slider(
                               value: position.inSeconds.toDouble().clamp(0.0, duration.inSeconds.toDouble()),
@@ -2713,4 +2715,6 @@ class AlbumListSliver extends StatelessWidget {
     );
   }
 }
+
+
 

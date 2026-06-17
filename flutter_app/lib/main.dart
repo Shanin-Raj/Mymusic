@@ -9,6 +9,7 @@ import 'package:sonic_vault_flutter/providers/player_provider.dart';
 import 'package:sonic_vault_flutter/providers/theme_provider.dart';
 import 'package:sonic_vault_flutter/providers/playlist_provider.dart';
 import 'package:sonic_vault_flutter/screens/main_screen.dart';
+import 'package:sonic_vault_flutter/services/audio_cache_service.dart';
 
 late MyAudioHandler _audioHandler;
 
@@ -39,8 +40,32 @@ Future<void> main() async {
   );
 }
 
-class SonicVaultApp extends StatelessWidget {
+class SonicVaultApp extends StatefulWidget {
   const SonicVaultApp({super.key});
+
+  @override
+  State<SonicVaultApp> createState() => _SonicVaultAppState();
+}
+
+class _SonicVaultAppState extends State<SonicVaultApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      AudioCacheService.instance.clearCache();
+    }
+  }
 
   // Montserrat — closest free Google Font to Spotify's "Spotify Mix" typeface
   static TextTheme _buildTextTheme(Color baseColor) => GoogleFonts.montserratTextTheme(

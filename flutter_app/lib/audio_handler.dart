@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:sonic_vault_flutter/services/api_service.dart';
+import 'package:sonic_vault_flutter/services/audio_cache_service.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final _player = AudioPlayer();
@@ -69,7 +70,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           _currentAppMediaItem = item;
           _appMediaItemController.add(item);
           mediaItem.add(item);
-          
+
+          // Reset inactivity timer on song change
+          AudioCacheService.instance.touch();
+
           // Precache the next song immediately when the current song starts playing
           _checkPreCache(index);
         }
@@ -155,6 +159,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> play() async {
     try {
+      AudioCacheService.instance.touch();
       // Synchronously emit playing state to guarantee immediate foreground service promotion inside the user click window
       final currentState = playbackState.value;
       playbackState.add(currentState.copyWith(
@@ -174,6 +179,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> pause() async {
     try {
+      AudioCacheService.instance.touch();
       // Synchronously emit paused state immediately
       final currentState = playbackState.value;
       playbackState.add(currentState.copyWith(
@@ -213,6 +219,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> skipToNext() async {
     try {
+      AudioCacheService.instance.touch();
       await _player.seekToNext();
     } catch (e) {
       debugPrint('🚨 Error in skipToNext(): $e');
@@ -222,6 +229,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> skipToPrevious() async {
     try {
+      AudioCacheService.instance.touch();
       await _player.seekToPrevious();
     } catch (e) {
       debugPrint('🚨 Error in skipToPrevious(): $e');
@@ -231,6 +239,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> skipToQueueItem(int index) async {
     try {
+      AudioCacheService.instance.touch();
       if (index < 0 || index >= queue.value.length) return;
       
       // Update media item immediately so the notification metadata is present
@@ -288,42 +297,52 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   @override
-  Future<void> addQueueItems(List<MediaItem> items) async {
+  Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     try {
-      final sources = items.map((item) => AudioSource.uri(
-        Uri.parse(ApiService.getStreamUrl(item.id)),
-        tag: item,
-      )).toList();
-      
+      final sources = await _buildSources(mediaItems);
+
       await _playlist.addAll(sources);
-      queue.add(queue.value..addAll(items));
-      
+      queue.add(queue.value..addAll(mediaItems));
+
       if (_player.audioSource == null) {
         await _player.setAudioSource(_playlist);
       }
     } catch (e) {
-      debugPrint('🚨 Error in addQueueItems(): $e');
+      debugPrint('Error in addQueueItems(): $e');
     }
   }
 
   @override
-  Future<void> updateQueue(List<MediaItem> newQueue) async {
+  Future<void> updateQueue(List<MediaItem> queue) async {
     try {
-      queue.add(newQueue);
+      this.queue.add(queue);
       await _playlist.clear();
-      final sources = newQueue.map((item) => AudioSource.uri(
-        Uri.parse(ApiService.getStreamUrl(item.id)),
-        tag: item,
-      )).toList();
+      final sources = await _buildSources(queue);
       await _playlist.addAll(sources);
-      
+
       // Ensure source is set
       if (_player.audioSource != _playlist) {
         await _player.setAudioSource(_playlist);
       }
     } catch (e) {
-      debugPrint('🚨 Error in updateQueue(): $e');
+      debugPrint('Error in updateQueue(): $e');
     }
+  }
+
+  Future<List<AudioSource>> _buildSources(List<MediaItem> items) async {
+    final sources = <AudioSource>[];
+    for (final item in items) {
+      final cachedPath = await AudioCacheService.instance.getCachedPath(item.id);
+      if (cachedPath != null) {
+        sources.add(AudioSource.file(cachedPath, tag: item));
+      } else {
+        sources.add(AudioSource.uri(
+          Uri.parse(ApiService.getStreamUrl(item.id)),
+          tag: item,
+        ));
+      }
+    }
+    return sources;
   }
 
   void _checkPreCache(int currentIndex) {
@@ -332,12 +351,37 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         final nextItem = queue.value[currentIndex + 1];
         if (_preCachedId != nextItem.id) {
           _preCachedId = nextItem.id;
-          print('📡 Pre-caching next native track immediately: ${nextItem.title}');
-          ApiService.preCache(nextItem.id);
+          debugPrint('Pre-downloading next track: ${nextItem.title}');
+          _downloadNextSong(nextItem);
         }
       }
     } catch (e) {
-      debugPrint('🚨 Error in _checkPreCache(): $e');
+      debugPrint('Error in _checkPreCache(): $e');
+    }
+  }
+
+  Future<void> _downloadNextSong(MediaItem item) async {
+    try {
+      final index = queue.value.indexOf(item);
+      if (index < 0) return;
+      final localPath = await AudioCacheService.instance.downloadSong(item.id);
+      if (localPath.isNotEmpty) {
+        await _replaceSource(index, localPath);
+        debugPrint('Replaced source at index $index with local file for ${item.title}');
+      }
+    } catch (e) {
+      debugPrint('Failed to download next song ${item.title}: $e');
+    }
+  }
+
+  Future<void> _replaceSource(int index, String localPath) async {
+    try {
+      if (index >= 0 && index < _playlist.children.length) {
+        final item = queue.value[index];
+        _playlist.children[index] = AudioSource.file(localPath, tag: item);
+      }
+    } catch (e) {
+      debugPrint('Error replacing source at $index: $e');
     }
   }
 

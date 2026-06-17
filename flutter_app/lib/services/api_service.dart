@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
   // Base URL - will be configurable later for Render migration
-  static String baseUrl = 'https://mixtape-backend-cegu.onrender.com'; // Default for local testing
+  static String baseUrl = 'https://mymusic-ibgr.onrender.com'; // Default for local testing
 
   // Cache variables to prevent lagging and redundant network requests
   static List<dynamic>? _cachedSongs;
@@ -53,7 +54,7 @@ class ApiService {
     try {
       await http.get(Uri.parse('$baseUrl/api/precache/$songId'));
     } catch (e) {
-      print('Precache failed: $e');
+      debugPrint('Precache failed: $e');
     }
   }
 
@@ -122,7 +123,7 @@ class ApiService {
         return list.map((img) => img.toString()).toList();
       }
     } catch (e) {
-      print('Failed to fetch available images: $e');
+      debugPrint('Failed to fetch available images: $e');
     }
     return [];
   }
