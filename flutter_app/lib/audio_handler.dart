@@ -32,6 +32,24 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Duration _lastPosition = Duration.zero;
   int _stallCount = 0;
 
+  // Synchronization lock for queue/playlist operations
+  Future<void> _playlistLock = Future.value();
+
+  Future<T> _synchronized<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _playlistLock = _playlistLock.then((_) async {
+      try {
+        final result = await action();
+        completer.complete(result);
+      } catch (e, stackTrace) {
+        completer.completeError(e, stackTrace);
+      }
+    }).catchError((e) {
+      debugPrint('🚨 Error in _playlistLock chain: $e');
+    });
+    return completer.future;
+  }
+
   MyAudioHandler() {
     _init();
     _startWatchdog();
@@ -301,95 +319,101 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   @override
-  Future<void> addQueueItems(List<MediaItem> mediaItems) async {
-    try {
-      final sources = await _buildSources(mediaItems);
+  Future<void> addQueueItems(List<MediaItem> mediaItems) {
+    return _synchronized(() async {
+      try {
+        final sources = await _buildSources(mediaItems);
 
-      await _playlist.addAll(sources);
-      queue.add(queue.value..addAll(mediaItems));
+        await _playlist.addAll(sources);
+        queue.add(queue.value..addAll(mediaItems));
 
-      if (_player.audioSource == null) {
-        await _player.setAudioSource(_playlist);
+        if (_player.audioSource == null) {
+          await _player.setAudioSource(_playlist);
+        }
+      } catch (e) {
+        debugPrint('Error in addQueueItems(): $e');
       }
-    } catch (e) {
-      debugPrint('Error in addQueueItems(): $e');
-    }
+    });
   }
 
   @override
-  Future<void> updateQueue(List<MediaItem> queue) async {
-    try {
-      // Check if the queue is identical
-      if (this.queue.value.length == queue.length) {
-        bool identical = true;
-        for (int i = 0; i < queue.length; i++) {
-          if (this.queue.value[i].id != queue[i].id) {
-            identical = false;
-            break;
+  Future<void> updateQueue(List<MediaItem> queue) {
+    return _synchronized(() async {
+      try {
+        // Check if the queue is identical
+        if (this.queue.value.length == queue.length) {
+          bool identical = true;
+          for (int i = 0; i < queue.length; i++) {
+            if (this.queue.value[i].id != queue[i].id) {
+              identical = false;
+              break;
+            }
           }
+          if (identical) return;
         }
-        if (identical) return;
+
+        this.queue.add(queue);
+
+        final wasPlaying = _player.playing;
+        if (wasPlaying) {
+          await _player.pause();
+        }
+
+        await _playlist.clear();
+        final sources = await _buildSources(queue);
+        await _playlist.addAll(sources);
+
+        // Ensure source is set and reset to initial position/index
+        await _player.setAudioSource(_playlist, initialIndex: 0, initialPosition: Duration.zero);
+
+        if (wasPlaying) {
+          await _player.play();
+        }
+      } catch (e) {
+        debugPrint('Error in updateQueue(): $e');
       }
-
-      this.queue.add(queue);
-
-      final wasPlaying = _player.playing;
-      if (wasPlaying) {
-        await _player.pause();
-      }
-
-      await _playlist.clear();
-      final sources = await _buildSources(queue);
-      await _playlist.addAll(sources);
-
-      // Ensure source is set and reset to initial position/index
-      await _player.setAudioSource(_playlist, initialIndex: 0, initialPosition: Duration.zero);
-
-      if (wasPlaying) {
-        await _player.play();
-      }
-    } catch (e) {
-      debugPrint('Error in updateQueue(): $e');
-    }
+    });
   }
 
-  Future<void> updateQueueAndPlay(List<MediaItem> newQueue, int startIndex) async {
-    try {
-      // Check if the queue is identical
-      bool identical = queue.value.length == newQueue.length;
-      if (identical) {
-        for (int i = 0; i < newQueue.length; i++) {
-          if (queue.value[i].id != newQueue[i].id) {
-            identical = false;
-            break;
+  Future<void> updateQueueAndPlay(List<MediaItem> newQueue, int startIndex) {
+    return _synchronized(() async {
+      try {
+        // Check if the queue is identical
+        bool identical = queue.value.length == newQueue.length;
+        if (identical) {
+          for (int i = 0; i < newQueue.length; i++) {
+            if (queue.value[i].id != newQueue[i].id) {
+              identical = false;
+              break;
+            }
           }
         }
-      }
 
-      if (identical && _player.currentIndex == startIndex) {
-        if (!_player.playing) {
-          await play();
+        if (identical && _player.currentIndex == startIndex) {
+          if (!_player.playing) {
+            await play();
+          }
+          return;
         }
-        return;
+
+        queue.add(newQueue);
+
+        await _playlist.clear();
+        final sources = await _buildSources(newQueue);
+        await _playlist.addAll(sources);
+
+        // Atomically load playlist starting at target song index
+        await _player.setAudioSource(
+          _playlist,
+          initialIndex: startIndex,
+          initialPosition: Duration.zero,
+        );
+
+        await play();
+      } catch (e) {
+        debugPrint('Error in updateQueueAndPlay(): $e');
       }
-
-      queue.add(newQueue);
-
-      await _playlist.clear();
-      final sources = await _buildSources(newQueue);
-      await _playlist.addAll(sources);
-
-      // Atomically load playlist starting at target song index
-      await _player.setAudioSource(
-        _playlist,
-        initialIndex: startIndex,
-        initialPosition: Duration.zero,
-      );
-
-      await play();
-    } catch (e) {
-      debugPrint('Error in updateQueueAndPlay(): $e');
-    }
+    });
   }
 
   Future<List<AudioSource>> _buildSources(List<MediaItem> items) async {
@@ -409,29 +433,37 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   @override
-  Future<void> removeQueueItem(MediaItem mediaItem) async {
-    try {
-      final index = queue.value.indexWhere((item) => item.id == mediaItem.id);
-      if (index != -1) {
-        await removeQueueItemAt(index);
+  Future<void> removeQueueItem(MediaItem mediaItem) {
+    return _synchronized(() async {
+      try {
+        final index = queue.value.indexWhere((item) => item.id == mediaItem.id);
+        if (index != -1) {
+          await _removeQueueItemAt(index);
+        }
+      } catch (e) {
+        debugPrint('Error in removeQueueItem(): $e');
       }
-    } catch (e) {
-      debugPrint('Error in removeQueueItem(): $e');
-    }
+    });
   }
 
   @override
-  Future<void> removeQueueItemAt(int index) async {
-    try {
-      if (index < 0 || index >= queue.value.length) return;
-      await _playlist.removeAt(index);
-      final currentQueue = List<MediaItem>.from(queue.value);
-      currentQueue.removeAt(index);
-      queue.add(currentQueue);
-      _updatePlaybackState();
-    } catch (e) {
-      debugPrint('Error in removeQueueItemAt(): $e');
-    }
+  Future<void> removeQueueItemAt(int index) {
+    return _synchronized(() async {
+      try {
+        await _removeQueueItemAt(index);
+      } catch (e) {
+        debugPrint('Error in removeQueueItemAt(): $e');
+      }
+    });
+  }
+
+  Future<void> _removeQueueItemAt(int index) async {
+    if (index < 0 || index >= queue.value.length) return;
+    await _playlist.removeAt(index);
+    final currentQueue = List<MediaItem>.from(queue.value);
+    currentQueue.removeAt(index);
+    queue.add(currentQueue);
+    _updatePlaybackState();
   }
 
   void _checkPreCache(int currentIndex) {
@@ -451,28 +483,45 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _downloadNextSong(MediaItem item) async {
     try {
-      final index = queue.value.indexOf(item);
-      if (index < 0) return;
       final localPath = await AudioCacheService.instance.downloadSong(item.id);
       if (localPath.isNotEmpty) {
-        await _replaceSource(index, localPath);
-        debugPrint('Replaced source at index $index with local file for ${item.title}');
+        final replaced = await _synchronized(() async {
+          final currentIndex = queue.value.indexWhere((qItem) => qItem.id == item.id);
+          if (currentIndex != -1) {
+            return await _replaceSource(currentIndex, item, localPath);
+          }
+          return false;
+        });
+
+        if (replaced) {
+          debugPrint('Replaced source with local file for ${item.title}');
+        } else {
+          debugPrint('Did not replace source for ${item.title} (already replaced, no longer in queue, or player error)');
+        }
       }
     } catch (e) {
       debugPrint('Failed to download next song ${item.title}: $e');
     }
   }
 
-  Future<void> _replaceSource(int index, String localPath) async {
+  Future<bool> _replaceSource(int index, MediaItem item, String localPath) async {
     try {
-      if (index >= 0 && index < _playlist.length) {
-        final item = queue.value[index];
-        final newSource = AudioSource.file(localPath, tag: item);
-        await _playlist.removeAt(index);
-        await _playlist.insert(index, newSource);
+      if (index >= 0 && index < queue.value.length && index < _playlist.length) {
+        if (queue.value[index].id == item.id) {
+          final currentSource = _playlist.children[index];
+          if (currentSource is UriAudioSource && currentSource.uri.isScheme('file')) {
+            return false;
+          }
+          final newSource = AudioSource.file(localPath, tag: item);
+          await _playlist.removeAt(index);
+          await _playlist.insert(index, newSource);
+          return true;
+        }
       }
+      return false;
     } catch (e) {
       debugPrint('Error replacing source at $index: $e');
+      return false;
     }
   }
 
