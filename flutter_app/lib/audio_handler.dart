@@ -242,12 +242,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       AudioCacheService.instance.touch();
       if (index < 0 || index >= queue.value.length) return;
       
-      // Update media item immediately so the notification metadata is present
-      final item = queue.value[index];
-      _currentAppMediaItem = item;
-      _appMediaItemController.add(item);
-      mediaItem.add(item);
-      
       await _player.seek(Duration.zero, index: index);
       _updatePlaybackState();
     } catch (e) {
@@ -315,7 +309,25 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> updateQueue(List<MediaItem> queue) async {
     try {
+      // Check if the queue is identical
+      if (this.queue.value.length == queue.length) {
+        bool identical = true;
+        for (int i = 0; i < queue.length; i++) {
+          if (this.queue.value[i].id != queue[i].id) {
+            identical = false;
+            break;
+          }
+        }
+        if (identical) return;
+      }
+
       this.queue.add(queue);
+
+      final wasPlaying = _player.playing;
+      if (wasPlaying) {
+        await _player.pause();
+      }
+
       await _playlist.clear();
       final sources = await _buildSources(queue);
       await _playlist.addAll(sources);
@@ -343,6 +355,32 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     }
     return sources;
+  }
+
+  @override
+  Future<void> removeQueueItem(MediaItem mediaItem) async {
+    try {
+      final index = queue.value.indexWhere((item) => item.id == mediaItem.id);
+      if (index != -1) {
+        await removeQueueItemAt(index);
+      }
+    } catch (e) {
+      debugPrint('Error in removeQueueItem(): $e');
+    }
+  }
+
+  @override
+  Future<void> removeQueueItemAt(int index) async {
+    try {
+      if (index < 0 || index >= queue.value.length) return;
+      await _playlist.removeAt(index);
+      final currentQueue = List<MediaItem>.from(queue.value);
+      currentQueue.removeAt(index);
+      queue.add(currentQueue);
+      _updatePlaybackState();
+    } catch (e) {
+      debugPrint('Error in removeQueueItemAt(): $e');
+    }
   }
 
   void _checkPreCache(int currentIndex) {

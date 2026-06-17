@@ -71,7 +71,7 @@ async function run() {
         name: name.trim(),
         artist: artist.trim(),
         album: 'Manual Addition',
-        image: image
+        image: image || null
     };
 
     try {

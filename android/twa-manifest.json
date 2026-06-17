@@ -1,6 +1,6 @@
 {
   "packageId": "app.run.asia_south1.music_vault_767870933282.twa",
-  "host": "music-vault-767870933282.asia-south1.run.app",
+  "host": "mymusic-ibgr.onrender.com",
   "name": "Sonic Vault",
   "launcherName": "Sonic Vault",
   "display": "standalone",
@@ -13,8 +13,8 @@
   "backgroundColor": "#191414",
   "enableNotifications": true,
   "startUrl": "/",
-  "iconUrl": "https://music-vault-767870933282.asia-south1.run.app/icons/icon-512.png",
-  "maskableIconUrl": "https://music-vault-767870933282.asia-south1.run.app/icons/icon-512.png",
+  "iconUrl": "https://mymusic-ibgr.onrender.com/icons/icon-512.png",
+  "maskableIconUrl": "https://mymusic-ibgr.onrender.com/icons/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "D:\\music\\android\\android.keystore",
@@ -24,7 +24,7 @@
   "appVersionCode": 4,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://music-vault-767870933282.asia-south1.run.app/manifest.json",
+  "webManifestUrl": "https://mymusic-ibgr.onrender.com/manifest.json",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -33,7 +33,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://music-vault-767870933282.asia-south1.run.app/",
+  "fullScopeUrl": "https://mymusic-ibgr.onrender.com/",
   "minSdkVersion": 21,
   "orientation": "portrait-primary",
   "fingerprints": [

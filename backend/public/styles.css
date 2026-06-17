@@ -169,13 +169,14 @@ h1, h2, h3, h4, .font-head { font-family: var(--font-head); font-weight: 700; }
 
 /* ═════ Mini Player ═════ */
 .mini-player { 
-  position: fixed; bottom: calc(var(--nav-height) + 8px); left: 8px; right: 8px; height: var(--mini-height); 
+  position: fixed; bottom: calc(var(--nav-height) + 8px + env(safe-area-inset-bottom)); left: 8px; right: 8px; height: var(--mini-height); 
   background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border); border-radius: var(--radius-md); z-index: 500; 
+  border: 1px solid var(--glass-border); border-radius: var(--radius-md); z-index: 1100; 
   display: flex; align-items: center; padding: 0 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  overflow: hidden; cursor: pointer; transition: transform 0.2s ease;
+  overflow: hidden; cursor: pointer;
 }
-.mini-player:active { transform: scale(0.98); }
+.mini-player:active { transform: none !important; }
+.mini-player button:active { transform: none !important; }
 .mini-content { display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; }
 .mini-art { width: 44px; height: 44px; border-radius: 4px; overflow: hidden; margin-right: 12px; background: var(--surface-dim); flex-shrink: 0; }
 .mini-info { flex: 1; min-width: 0; overflow: hidden; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; }
@@ -566,5 +567,45 @@ input:checked + .slider:before {
 }
 .screen-header-back-btn:hover {
   background: var(--surface-highlight);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LISTENING ROOM STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.sync-indicator-dot {
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  display: inline-block;
+}
+.sync-indicator-dot.pulsing {
+  animation: sync-pulse 1.8s infinite;
+}
+@keyframes sync-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(29, 185, 84, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 185, 84, 0);
+  }
+}
+
+#room-code-display {
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+#room-code-display:active {
+  background-color: var(--surface-highlight) !important;
+  transform: scale(0.95);
+}
+
+.room-input-code-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
 }
 

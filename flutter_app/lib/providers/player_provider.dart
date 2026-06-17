@@ -278,4 +278,14 @@ class PlayerProvider with ChangeNotifier {
     }
     notifyListeners();
   }
+
+  Future<void> removeFromQueueAt(int index) async {
+    try {
+      if (index < 0 || index >= queue.length) return;
+      await _audioHandler.removeQueueItemAt(index);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('🚨 Error in removeFromQueueAt(): $e');
+    }
+  }
 }

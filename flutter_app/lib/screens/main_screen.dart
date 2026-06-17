@@ -10,6 +10,7 @@ import 'package:sonic_vault_flutter/providers/player_provider.dart';
 import 'package:sonic_vault_flutter/providers/playlist_provider.dart';
 import 'package:sonic_vault_flutter/providers/theme_provider.dart';
 import 'package:sonic_vault_flutter/screens/settings_screen.dart';
+import 'package:sonic_vault_flutter/screens/share_room_screen.dart';
 import 'package:sonic_vault_flutter/screens/queue_screen.dart';
 import 'package:sonic_vault_flutter/screens/album_detail_screen.dart';
 import 'package:sonic_vault_flutter/screens/artist_detail_screen.dart';
@@ -209,6 +210,17 @@ class HomeView extends StatelessWidget {
                   size: 22,
                 ),
                 onPressed: () => context.read<ThemeProvider>().toggleTheme(),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.group_outlined,
+                  color: isDark ? Colors.white : MyColors.darkText,
+                  size: 22,
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ShareRoomScreen()),
+                ),
               ),
               IconButton(
                 icon: Icon(

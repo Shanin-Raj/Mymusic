@@ -13,6 +13,50 @@ let isShuffleOn = false;
 let repeatMode = 0; 
 const likedSongs = new Set(JSON.parse(localStorage.getItem('sv_liked') || '[]'));
 let _preCachedNextId = null;
+let isChangingSong = false;
+
+// Room Sync Variables
+let activeRoomId = localStorage.getItem('sv_room_id') || null;
+let clockOffset = 0;
+let isSyncingFromServer = false;
+let sseEventSource = null;
+
+function showToast(message) {
+  let toast = document.querySelector('#app-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: calc(var(--nav-height) + 80px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface-high);
+      color: var(--on-surface);
+      padding: 12px 24px;
+      border-radius: var(--radius-full);
+      z-index: 999999;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      font-weight: 600;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+      border: 1px solid var(--glass-border);
+      text-align: center;
+      white-space: nowrap;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2500);
+}
 
 // Persistent Theme Handle
 const theme = {
@@ -64,6 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
   bindPlaylistAdd();
   bindPlaylistDetails();
   
+  syncClock();
+  bindRoomSettings();
+  
   if (localStorage.getItem('sv_session') === '1') {
     document.querySelector('#screen-login').classList.add('hidden');
     document.querySelector('#app-shell').classList.remove('hidden');
@@ -72,6 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateTo(currentHash, false);
     
     loadAppData();
+
+    if (activeRoomId) {
+      showRoomConnectedUI(activeRoomId);
+      connectRoomSse(activeRoomId);
+    }
   }
 });
 
@@ -174,6 +226,17 @@ async function navigateToPlaylist(id) {
     } catch (e) { alert('Failed to load playlist'); }
 }
 
+function addToQueue(song) {
+  if (!currentPlaylist || currentPlaylist.length === 0) {
+    currentPlaylist = [...allSongs];
+    currentIndex = currentPlaylist.findIndex(s => s.id === (currentSong ? currentSong.id : ''));
+  }
+  
+  currentPlaylist.push(song);
+  showToast(`Added to Queue: ${song.name}`);
+  renderQueuePanel();
+}
+
 function renderTrackList(container, songs, queueContext) {
   if (!container) return;
   const isLibrary = container.id === 'library-tracks';
@@ -191,6 +254,9 @@ function renderTrackList(container, songs, queueContext) {
         <div class="track-right">
           ${isLibrary ? `<button class="icon-btn btn-song-delete" title="Delete Permanently" style="color:var(--on-surface-low); width: 32px; height: 32px;"><span class="material-symbols-rounded" style="font-size: 18px;">delete</span></button>` : ''}
           ${isPlaylist ? `<button class="icon-btn btn-song-remove-pl" title="Remove from Playlist" style="color:var(--on-surface-low); width: 32px; height: 32px;"><span class="material-symbols-rounded" style="font-size: 18px;">remove_circle_outline</span></button>` : ''}
+          <button class="icon-btn btn-add-queue" title="Add to Queue" style="color:var(--on-surface-low); width: 32px; height: 32px;">
+            <span class="material-symbols-rounded" style="font-size: 18px;">playlist_add</span>
+          </button>
           ${likedSongs.has(s.id) ? '<span class="material-symbols-rounded track-liked">favorite</span>' : ''}
           <span class="track-duration">${formatDuration(s.duration_ms)}</span>
         </div>
@@ -200,11 +266,24 @@ function renderTrackList(container, songs, queueContext) {
 
   container.querySelectorAll('.track-item').forEach(el => {
     el.addEventListener('click', (e) => {
-      if (e.target.closest('.icon-btn')) return; // Ignore if clicking remove/delete button
+      if (e.target.closest('.icon-btn')) return; // Ignore if clicking remove/delete/queue button
       const songId = el.dataset.id;
       const targetSong = songs.find(s => s.id === songId);
       if (targetSong) {
         playSong(targetSong, queueContext || songs || allSongs);
+      }
+    });
+  });
+
+  // Bind Add to Queue
+  container.querySelectorAll('.btn-add-queue').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.track-item');
+      const songId = item.dataset.id;
+      const targetSong = songs.find(s => s.id === songId) || allSongs.find(s => s.id === songId);
+      if (targetSong) {
+        addToQueue(targetSong);
       }
     });
   });
@@ -251,22 +330,72 @@ function renderTrackList(container, songs, queueContext) {
   });
 }
 
+function removeFromQueue(idx) {
+  if (!currentPlaylist || currentPlaylist.length === 0) {
+    currentPlaylist = [...allSongs];
+  }
+  
+  const removedSong = currentPlaylist[idx];
+  if (!removedSong) return;
+  
+  currentPlaylist.splice(idx, 1);
+  
+  if (idx === currentIndex) {
+    if (currentPlaylist.length === 0) {
+      audio.pause();
+      currentSong = null;
+      currentIndex = -1;
+      document.querySelector('#mini-player').classList.add('hidden');
+    } else {
+      currentIndex = currentIndex % currentPlaylist.length;
+      playSong(currentPlaylist[currentIndex], currentPlaylist);
+    }
+  } else if (idx < currentIndex) {
+    currentIndex--;
+  }
+  
+  showToast(`Removed from Queue: ${removedSong.name}`);
+  renderQueuePanel();
+  
+  if (currentSong) {
+    renderPlayerUI(currentSong);
+  }
+}
+
 function renderQueuePanel() {
   const list = document.querySelector('#queue-list'); if (!list) return;
   const queue = currentPlaylist.length ? currentPlaylist : allSongs;
-  list.innerHTML = queue.map(s => `
-    <div class="queue-item ${s.id === currentSong?.id ? 'queue-active' : ''}" data-id="${s.id}">
+  list.innerHTML = queue.map((s, idx) => `
+    <div class="queue-item ${s.id === currentSong?.id ? 'queue-active' : ''}" data-id="${s.id}" data-idx="${idx}">
       <div class="track-meta" style="flex:1">
         <div class="track-name" style="font-weight:700">${s.name}</div>
         <div class="track-artist" style="font-size:12px;color:var(--on-surface-dim)">${s.artist.split(',')[0]}</div>
       </div>
+      <button class="icon-btn btn-remove-queue" title="Remove from Queue" style="color:var(--on-surface-low); width: 32px; height: 32px; margin-right: 8px;">
+        <span class="material-symbols-rounded" style="font-size: 18px;">remove_circle_outline</span>
+      </button>
       <span class="material-symbols-rounded" style="color:var(--on-surface-low)">drag_indicator</span>
     </div>
   `).join('');
-  list.querySelectorAll('.queue-item').forEach(el => el.addEventListener('click', () => { 
-    playSongById(el.dataset.id); 
-    document.querySelector('#queue-panel').classList.add('hidden'); 
+  
+  list.querySelectorAll('.queue-item').forEach(el => el.addEventListener('click', (e) => { 
+    if (e.target.closest('.icon-btn')) return; // Ignore if clicking remove button
+    const idx = parseInt(el.dataset.idx);
+    const targetSong = queue[idx];
+    if (targetSong) {
+      playSong(targetSong, queue);
+      document.querySelector('#queue-panel').classList.add('hidden'); 
+    }
   }));
+
+  list.querySelectorAll('.btn-remove-queue').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.queue-item');
+      const idx = parseInt(item.dataset.idx);
+      removeFromQueue(idx);
+    });
+  });
 }
 
 function formatDuration(ms) { if (!ms) return '0:00'; const mins = Math.floor(ms / 60000); const secs = Math.floor((ms % 60000) / 1000); return `${mins}:${secs.toString().padStart(2, '0')}`; }
@@ -319,9 +448,17 @@ function playSong(song, playlist) {
   
   renderPlayerUI(song);
 
+  isChangingSong = true;
+  sendRoomStateUpdateDirect(song.id, true, 0);
+
   audio.src = `/api/stream/${song.id}`;
   audio.load();
   audio.play().catch(e => {
+    isChangingSong = false;
+    if (e.name === 'AbortError') {
+      console.log('Play request was interrupted by a new request or pause.');
+      return;
+    }
     console.error('Audio Play Error:', e);
     alert('Failed to play track. Telegram might be slow — please try again in a few seconds.');
   });
@@ -379,6 +516,7 @@ let _isDraggingProgress = false;
 let _nextTrackPreloaded = false;
 
 audio.addEventListener('timeupdate', () => {
+  if (isChangingSong) return;
   if (!audio.duration || !isFinite(audio.duration)) return;
   
   const remaining = audio.duration - audio.currentTime;
@@ -407,11 +545,17 @@ audio.addEventListener('playing', () => {
   isPlaying = true;
   const playIcons = document.querySelectorAll('.material-symbols-rounded');
   playIcons.forEach(i => { if (i.textContent === 'play_arrow' && (i.closest('#btn-play') || i.closest('#mini-play'))) i.textContent = 'pause'; });
+  isChangingSong = false;
+  sendRoomStateUpdate();
 });
 audio.addEventListener('pause', () => { 
   isPlaying = false;
   const playIcons = document.querySelectorAll('.material-symbols-rounded');
   playIcons.forEach(i => { if (i.textContent === 'pause' && (i.closest('#btn-play') || i.closest('#mini-play'))) i.textContent = 'play_arrow'; });
+  sendRoomStateUpdate();
+});
+audio.addEventListener('seeked', () => {
+  sendRoomStateUpdate();
 });
 
 function playNext() {
@@ -452,13 +596,18 @@ function triggerPreCacheNext() {
 }
 
 function bindPlayerControls() {
-  document.querySelector('#btn-play')?.addEventListener('click', () => audio.paused ? audio.play() : audio.pause());
-  document.querySelector('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); audio.paused ? audio.play() : audio.pause(); });
-  document.querySelector('#btn-next')?.addEventListener('click', playNext); 
-  document.querySelector('#mini-next')?.addEventListener('click', (e) => { e.stopPropagation(); playNext(); });
-  document.querySelector('#btn-prev')?.addEventListener('click', playPrev);
+  document.querySelector('#btn-play')?.addEventListener('click', () => { isChangingSong = false; audio.paused ? audio.play() : audio.pause(); });
+  document.querySelector('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); isChangingSong = false; audio.paused ? audio.play() : audio.pause(); });
+  document.querySelector('#btn-next')?.addEventListener('click', () => { isChangingSong = false; playNext(); }); 
+  document.querySelector('#mini-next')?.addEventListener('click', (e) => { e.stopPropagation(); isChangingSong = false; playNext(); });
+  document.querySelector('#btn-prev')?.addEventListener('click', () => { isChangingSong = false; playPrev(); });
   document.querySelector('#btn-player-back')?.addEventListener('click', () => history.back());
-  document.querySelector('#mini-player-tap')?.addEventListener('click', () => navigateTo('player'));
+  
+  // Make the entire mini-player container clickable to open the full-screen player, except when clicking the control buttons
+  document.querySelector('#mini-player')?.addEventListener('click', (e) => {
+    if (e.target.closest('.mini-controls')) return;
+    navigateTo('player');
+  });
   
   document.querySelector('#btn-shuffle')?.addEventListener('click', () => { 
     isShuffleOn = !isShuffleOn; 
@@ -901,4 +1050,244 @@ function renderPlaylistAddSongsModal() {
       }
     });
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LISTENING ROOM FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function syncClock() {
+  try {
+    const start = Date.now();
+    const res = await fetch('/api/time');
+    const data = await res.json();
+    const end = Date.now();
+    const rtt = end - start;
+    const estimatedServerTime = data.time + (rtt / 2);
+    clockOffset = estimatedServerTime - end;
+    console.log('⏰ Clock synced. Offset:', clockOffset, 'ms');
+  } catch (e) {
+    console.error('Failed to sync clock:', e);
+  }
+}
+
+async function sendRoomStateUpdateDirect(songId, playing, position) {
+  if (!activeRoomId || isSyncingFromServer) return;
+  console.log(`📡 Sending Room Update Direct: roomId=${activeRoomId}, songId=${songId}, playing=${playing}, pos=${position}`);
+  try {
+    await fetch(`/api/rooms/${activeRoomId}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentSongId: songId,
+        isPlaying: playing,
+        position: position
+      })
+    });
+  } catch (err) {
+    console.error('Failed to send room update:', err);
+  }
+}
+
+async function sendRoomStateUpdate() {
+  if (!activeRoomId || isSyncingFromServer || isChangingSong) return;
+  
+  const songId = currentSong ? currentSong.id : '';
+  const playing = !audio.paused;
+  const position = Math.round(audio.currentTime * 1000); // milliseconds
+
+  await sendRoomStateUpdateDirect(songId, playing, position);
+}
+
+function handleRoomSseMessage(roomState) {
+  if (!roomState || roomState.error) {
+    console.warn('Room SSE error or empty state:', roomState);
+    return;
+  }
+
+  const { roomId, currentSongId, isPlaying: targetPlaying, position: targetPos, updatedAt } = roomState;
+
+  if (roomId !== activeRoomId) return;
+
+  const currentLocalSongId = currentSong ? currentSong.id : '';
+  
+  isSyncingFromServer = true;
+
+  const performSync = async () => {
+    try {
+      if (currentSongId && currentSongId !== currentLocalSongId) {
+        console.log(`📡 Loading new room song: ${currentSongId}`);
+        const songRes = await fetch(`/api/songs/${currentSongId}`);
+        if (songRes.ok) {
+          const songDetails = await songRes.json();
+          
+          let playlist = allSongs;
+          if (currentPlaylist && currentPlaylist.length > 0) {
+            playlist = currentPlaylist;
+          }
+          
+          currentSong = songDetails;
+          currentIndex = playlist.findIndex(s => s.id === currentSongId);
+          if (currentIndex === -1) {
+            playlist = [songDetails];
+            currentIndex = 0;
+          }
+          currentPlaylist = playlist;
+          
+          renderPlayerUI(songDetails);
+          audio.src = `/api/stream/${songDetails.id}`;
+          audio.load();
+        } else {
+          console.error('Failed to fetch song details for sync');
+          return;
+        }
+      }
+
+      // Apply positions and states
+      const serverNow = Date.now() + clockOffset;
+      const elapsed = targetPlaying ? (serverNow - updatedAt) : 0;
+      const targetTimeSeconds = (targetPos + elapsed) / 1000;
+
+      if (targetPlaying) {
+        if (audio.paused) {
+          console.log('📡 SSE: Playing audio');
+          await audio.play().catch(e => console.warn('Audio play failed in sync:', e));
+        }
+        
+        const timeDiff = Math.abs(audio.currentTime - targetTimeSeconds);
+        if (timeDiff > 1.5 && isFinite(audio.duration)) {
+          console.log(`📡 SSE: Seeking from ${audio.currentTime}s to ${targetTimeSeconds}s`);
+          audio.currentTime = Math.max(0, targetTimeSeconds);
+        }
+      } else {
+        if (!audio.paused) {
+          console.log('📡 SSE: Pausing audio');
+          audio.pause();
+        }
+        const timeDiff = Math.abs(audio.currentTime - targetTimeSeconds);
+        if (timeDiff > 0.5) {
+          console.log(`📡 SSE: Seeking while paused from ${audio.currentTime}s to ${targetTimeSeconds}s`);
+          audio.currentTime = Math.max(0, targetTimeSeconds);
+        }
+      }
+    } catch (err) {
+      console.error('Error in performSync:', err);
+    } finally {
+      setTimeout(() => {
+        isSyncingFromServer = false;
+      }, 300);
+    }
+  };
+
+  performSync();
+}
+
+function connectRoomSse(roomId) {
+  disconnectRoomSse();
+  
+  console.log(`📡 Opening SSE stream for room: ${roomId}`);
+  sseEventSource = new EventSource(`/api/rooms/${roomId}/stream`);
+  
+  sseEventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      handleRoomSseMessage(data);
+    } catch (e) {
+      console.error('Failed to parse SSE event message:', e);
+    }
+  };
+  
+  sseEventSource.onerror = (err) => {
+    console.error('SSE Connection Error:', err);
+    if (activeRoomId === roomId) {
+      setTimeout(() => {
+        if (activeRoomId === roomId) {
+          console.log('📡 Reconnecting SSE...');
+          connectRoomSse(roomId);
+        }
+      }, 3000);
+    }
+  };
+}
+
+function disconnectRoomSse() {
+  if (sseEventSource) {
+    console.log('📡 Closing SSE stream');
+    sseEventSource.close();
+    sseEventSource = null;
+  }
+}
+
+function bindRoomSettings() {
+  document.querySelector('#btn-room-create')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/rooms', { method: 'POST' });
+      if (!res.ok) throw new Error('Create room failed');
+      const data = await res.json();
+      
+      activeRoomId = data.roomId;
+      localStorage.setItem('sv_room_id', activeRoomId);
+      
+      showRoomConnectedUI(activeRoomId);
+      connectRoomSse(activeRoomId);
+      sendRoomStateUpdate();
+    } catch (err) {
+      alert('Failed to create listening room: ' + err.message);
+    }
+  });
+
+  document.querySelector('#btn-room-join')?.addEventListener('click', async () => {
+    const input = document.querySelector('#room-input-code');
+    const code = input.value.trim().toUpperCase();
+    if (!code) return alert('Please enter a room code');
+    
+    try {
+      const res = await fetch(`/api/rooms/${code}`);
+      if (!res.ok) {
+        if (res.status === 404) throw new Error('Room not found. Check code.');
+        throw new Error('Join failed');
+      }
+      const data = await res.json();
+      
+      activeRoomId = data.roomId;
+      localStorage.setItem('sv_room_id', activeRoomId);
+      
+      showRoomConnectedUI(activeRoomId);
+      connectRoomSse(activeRoomId);
+      input.value = '';
+    } catch (err) {
+      alert('Failed to join listening room: ' + err.message);
+    }
+  });
+
+  document.querySelector('#btn-room-leave')?.addEventListener('click', () => {
+    disconnectRoomSse();
+    activeRoomId = null;
+    localStorage.removeItem('sv_room_id');
+    showRoomDisconnectedUI();
+  });
+
+  document.querySelector('#btn-room-back')?.addEventListener('click', () => {
+    history.back();
+  });
+
+  document.querySelector('#room-code-display')?.addEventListener('click', () => {
+    const code = document.querySelector('#room-code-display').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      alert('📋 Room code copied to clipboard!');
+    }).catch(err => {
+      console.error('Clipboard copy failed:', err);
+    });
+  });
+}
+
+function showRoomConnectedUI(roomId) {
+  document.querySelector('#room-state-disconnected').classList.add('hidden');
+  document.querySelector('#room-state-connected').classList.remove('hidden');
+  document.querySelector('#room-code-display').textContent = roomId;
+}
+
+function showRoomDisconnectedUI() {
+  document.querySelector('#room-state-connected').classList.add('hidden');
+  document.querySelector('#room-state-disconnected').classList.remove('hidden');
 }

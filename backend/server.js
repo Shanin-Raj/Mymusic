@@ -128,40 +128,45 @@ function getAbsoluteImageUrl(req, relativePath) {
 app.get('/.well-known/assetlinks.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
-let songsCache = null;
-let playlistsCache = null;
+let songsCache = [];
+let playlistsCache = [];
+
+function listenToLibrary() {
+    console.log('🔄 [Firestore] Setting up real-time library listeners...');
+    
+    db.collection('songs').onSnapshot(snapshot => {
+        const songs = [];
+        snapshot.forEach(doc => songs.push(doc.data()));
+        songsCache = songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
+        console.log(`⚡ [Firestore] Library cache updated: ${songsCache.length} songs`);
+    }, err => {
+        console.error('❌ [Firestore] Library listener error:', err);
+    });
+
+    db.collection('playlists').onSnapshot(snapshot => {
+        const playlists = [];
+        snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
+        playlistsCache = playlists;
+        console.log(`⚡ [Firestore] Playlists cache updated: ${playlistsCache.length} playlists`);
+    }, err => {
+        console.error('❌ [Firestore] Playlists listener error:', err);
+    });
+}
 
 async function getLibrary() {
-    if (songsCache) {
-        return songsCache;
-    }
-    console.log('🔥 [Firestore] Fetching all songs from DB (updating cache)...');
-    const snapshot = await db.collection('songs').get();
-    const songs = [];
-    snapshot.forEach(doc => songs.push(doc.data()));
-    songsCache = songs.sort((a, b) => (b.added_at?.toDate ? b.added_at.toDate() : new Date(b.added_at || 0)) - (a.added_at?.toDate ? a.added_at.toDate() : new Date(a.added_at || 0)));
     return songsCache;
 }
 
 async function getSongById(id) {
-    if (songsCache) {
-        const cached = songsCache.find(s => s.id === id);
-        if (cached) return cached;
-    }
+    const cached = songsCache.find(s => s.id === id);
+    if (cached) return cached;
+    
     console.log(`🔥 [Firestore] Fetching song detail for ${id} from DB...`);
     const doc = await db.collection('songs').doc(id).get();
     return doc.exists ? doc.data() : null;
 }
 
 async function getPlaylists() {
-    if (playlistsCache) {
-        return playlistsCache;
-    }
-    console.log('🔥 [Firestore] Fetching all playlists from DB (updating cache)...');
-    const snapshot = await db.collection('playlists').get();
-    const playlists = [];
-    snapshot.forEach(doc => playlists.push({ id: doc.id, ...doc.data() }));
-    playlistsCache = playlists;
     return playlistsCache;
 }
 
@@ -169,7 +174,6 @@ async function getPlaylists() {
 app.post('/api/add-song', async (req, res) => {
     try {
         const track = await addSong(req.body);
-        songsCache = null; // Invalidate memory cache
         res.json({ status: 'ok', track });
     } catch (err) { 
         console.error('API add-song error:', err);
@@ -215,9 +219,6 @@ app.delete('/api/songs/:id', async (req, res) => {
         });
         await batch.commit();
 
-        songsCache = null; // Invalidate memory cache
-        playlistsCache = null; // Invalidate memory cache
-
         res.json({ status: 'ok' });
     } catch (err) {
         console.error('Delete song failed:', err);
@@ -242,6 +243,105 @@ app.get('/api/songs', async (req, res) => {
     }
     catch (err) { res.status(500).json({ error: true, message: 'Library failed' }); }
 });
+const activeDownloads = new Map();
+const downloadQueue = [];
+let isDownloading = false;
+
+function enqueueDownload(song, priority) {
+    return new Promise((resolve, reject) => {
+        const task = { song, priority, resolve, reject };
+        if (priority === 1) {
+            // High priority (stream) goes right after the current active task (index 0)
+            if (downloadQueue.length > 0) {
+                downloadQueue.splice(1, 0, task);
+            } else {
+                downloadQueue.push(task);
+            }
+        } else {
+            downloadQueue.push(task);
+        }
+        processQueue();
+    });
+}
+
+async function processQueue() {
+    if (isDownloading || downloadQueue.length === 0) return;
+    isDownloading = true;
+    
+    const task = downloadQueue[0];
+    try {
+        const result = await performDownload(task.song);
+        task.resolve(result);
+    } catch (err) {
+        task.reject(err);
+    } finally {
+        downloadQueue.shift();
+        isDownloading = false;
+        processQueue();
+    }
+}
+
+async function performDownload(song) {
+    const songId = song.id;
+    const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
+    
+    console.log(`📡 [Telegram] Starting download for song ${songId}`);
+    await ensureTgConnected();
+    const peer = await tgClient.getInputEntity(channelId);
+    const messages = await tgClient.invoke(new Api.channels.GetMessages({ 
+        channel: peer, 
+        id: [new Api.InputMessageID({ id: song.tg_message_id })] 
+    }));
+    if (!messages.messages[0] || !messages.messages[0].media) {
+        throw new Error('Media not found in Telegram');
+    }
+    
+    const media = messages.messages[0].media;
+    let fileSize = undefined;
+    if (media.document && media.document.size) {
+        if (typeof media.document.size === 'object' && typeof media.document.size.toNumber === 'function') {
+            fileSize = media.document.size.toNumber();
+        } else {
+            fileSize = parseInt(media.document.size, 10);
+        }
+    }
+
+    // Write to a temporary file first, then rename atomically to prevent corruption
+    const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
+    const tempStream = fs.createWriteStream(tempFile);
+
+    await tgClient.downloadMedia(media, tempStream);
+
+    fs.renameSync(tempFile, cacheFile);
+
+    return cacheFile;
+}
+
+async function downloadSongFromTelegram(song, priority = 2) {
+    const songId = song.id;
+    const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
+    
+    // Check if the file is already fully downloaded
+    if (fs.existsSync(cacheFile) && !activeDownloads.has(songId)) {
+        return cacheFile;
+    }
+    
+    // If a download is already in progress, return the existing promise
+    if (activeDownloads.has(songId)) {
+        console.log(`ℹ️ [Telegram] Re-using active/queued download for song ${songId}`);
+        return activeDownloads.get(songId);
+    }
+    
+    console.log(`📡 [Telegram] Enqueueing download for song ${songId} (priority: ${priority})`);
+    const downloadPromise = enqueueDownload(song, priority);
+    activeDownloads.set(songId, downloadPromise);
+    
+    downloadPromise.finally(() => {
+        activeDownloads.delete(songId);
+    });
+    
+    return downloadPromise;
+}
 
 const MIME_TYPES = {
     '.m4a': 'audio/mp4',
@@ -258,6 +358,38 @@ function getMimeType(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     return MIME_TYPES[ext] || 'audio/mp4';
 }
+
+app.get('/api/stream/:id', async (req, res) => {
+    try {
+        const song = await getSongById(req.params.id);
+        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
+
+        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
+
+        // If already cached and not currently downloading, serve immediately
+        if (fs.existsSync(cacheFile) && !activeDownloads.has(song.id)) {
+            return streamFile(cacheFile, req, res);
+        }
+
+        const downloadPromise = downloadSongFromTelegram(song, 1);
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('TIMEOUT')), 50000)
+        );
+
+        try {
+            const filePath = await Promise.race([downloadPromise, timeoutPromise]);
+            return streamFile(filePath, req, res);
+        } catch (err) {
+            if (err.message === 'TIMEOUT') {
+                return res.status(503).json({ error: true, type: 'TIMEOUT', message: 'Telegram download timed out. Try again.' });
+            }
+            throw err;
+        }
+    } catch (err) {
+        console.error('Stream failed:', err);
+        res.status(500).json({ error: true, message: 'Stream failed: ' + err.message });
+    }
+});
 
 function streamFile(filePath, req, res) {
     const stat = fs.statSync(filePath);
@@ -285,89 +417,6 @@ function streamFile(filePath, req, res) {
     }
 }
 
-app.get('/api/stream/:id', async (req, res) => {
-    let downloadAborted = false;
-    try {
-        const song = await getSongById(req.params.id);
-        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
-        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
-        if (fs.existsSync(cacheFile)) return streamFile(cacheFile, req, res);
-
-        await ensureTgConnected();
-
-        const peer = await tgClient.getInputEntity(channelId);
-        const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
-        if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found in Telegram');
-
-        const media = messages.messages[0].media;
-        const fileSize = media.document?.size || 0;
-
-        // Send headers immediately so the client can start buffering
-        res.writeHead(200, {
-            'Content-Type': 'audio/mp4',
-            'Content-Length': fileSize,
-            'Accept-Ranges': 'bytes',
-        });
-
-        // Stream to both cache file and client simultaneously
-        const fileStream = fs.createWriteStream(cacheFile);
-        let downloadFinished = false;
-
-        const teeStream = new Writable({
-            write(chunk, encoding, callback) {
-                fileStream.write(chunk, encoding, (err) => {
-                    if (err) return callback(err);
-                    if (!downloadAborted && !res.writableEnded) {
-                        const canContinue = res.write(chunk, encoding);
-                        if (!canContinue) {
-                            res.once('drain', callback);
-                        } else {
-                            callback();
-                        }
-                    } else {
-                        callback();
-                    }
-                });
-            },
-            final(callback) {
-                downloadFinished = true;
-                fileStream.end();
-                if (!res.writableEnded) {
-                    res.end();
-                }
-                callback();
-            },
-            destroy(err, callback) {
-                if (!res.writableEnded) res.end();
-                callback(err);
-            }
-        });
-
-        const timeoutId = setTimeout(() => {
-            downloadAborted = true;
-            if (!res.writableEnded) res.end();
-            console.error(`Stream download timed out for ${song.id}`);
-        }, 30000);
-
-        try {
-            await tgClient.downloadMedia(media, teeStream);
-        } finally {
-            clearTimeout(timeoutId);
-        }
-
-        if (!downloadFinished && !res.writableEnded) {
-            res.end();
-        }
-    } catch (err) {
-        console.error('Stream failed:', err);
-        if (!res.headersSent) {
-            res.status(500).json({ error: true, message: 'Stream failed: ' + err.message });
-        } else if (!res.writableEnded) {
-            res.end();
-        }
-    }
-});
-
 app.get('/api/stats', async (req, res) => {
     try {
         const songs = await getLibrary();
@@ -378,17 +427,13 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/precache/:id', async (req, res) => {
     try {
         const song = await getSongById(req.params.id);
-        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
-        if (fs.existsSync(cacheFile)) return res.json({ status: 'ok' });
-        await ensureTgConnected();
-        const peer = await tgClient.getInputEntity(channelId);
-        const messages = await tgClient.invoke(new Api.channels.GetMessages({ channel: peer, id: [new Api.InputMessageID({ id: song.tg_message_id })] }));
-        if (!messages.messages[0] || !messages.messages[0].media) throw new Error('Media not found');
-        const cacheStream = fs.createWriteStream(cacheFile);
-        await tgClient.downloadMedia(messages.messages[0].media, cacheStream);
+        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
+
+        // Enqueue with low priority (2) - it will execute automatically after any active stream downloads finish
+        await downloadSongFromTelegram(song, 2);
         res.json({ status: 'ok' });
     } catch (e) {
-        console.error('Precache failed:', e.message);
+        console.error('Precache failed:', e);
         res.status(500).send();
     }
 });
@@ -431,7 +476,6 @@ app.post('/api/playlists', async (req, res) => {
             created_at: new Date().toISOString() 
         };
         await db.collection('playlists').doc(id).set(playlist);
-        playlistsCache = null; // Invalidate memory cache
         
         let plImg = playlist.image;
         if (!plImg || plImg === '') {
@@ -458,7 +502,6 @@ app.post('/api/playlists/:id/add', async (req, res) => {
         if (!data.songs.includes(songId)) {
             data.songs.push(songId);
             await plRef.update({ songs: data.songs });
-            playlistsCache = null; // Invalidate memory cache
         }
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -542,7 +585,6 @@ app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {
         const data = doc.data();
         const updatedSongs = data.songs.filter(sid => sid !== songId);
         await plRef.update({ songs: updatedSongs });
-        playlistsCache = null; // Invalidate memory cache
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -550,11 +592,149 @@ app.delete('/api/playlists/:id/songs/:songId', async (req, res) => {
 app.delete('/api/playlists/:id', async (req, res) => {
     try {
         await db.collection('playlists').doc(req.params.id).delete();
-        playlistsCache = null; // Invalidate memory cache
         res.json({ status: 'ok' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET single song details
+app.get('/api/songs/:id', async (req, res) => {
+    try {
+        const song = await getSongById(req.params.id);
+        if (!song) return res.status(404).json({ error: 'Song not found' });
+        let img = song.image;
+        if (!img || img === '') {
+            img = getRandomCoverImage(song.id || song.name);
+        }
+        res.json({
+            ...song,
+            image: getAbsoluteImageUrl(req, img)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET server time for sync compensation
+app.get('/api/time', (req, res) => {
+    res.json({ time: Date.now() });
+});
+
+// Helper: Generate a unique short Room ID
+function generateRoomId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 5; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+// POST create a room
+app.post('/api/rooms', async (req, res) => {
+    try {
+        let roomId;
+        let docRef;
+        let doc;
+        let attempts = 0;
+        
+        do {
+            roomId = generateRoomId();
+            docRef = db.collection('rooms').doc(roomId);
+            doc = await docRef.get();
+            attempts++;
+        } while (doc.exists && attempts < 10);
+
+        if (doc.exists) {
+            return res.status(500).json({ error: 'Failed to generate a unique room ID' });
+        }
+
+        const roomState = {
+            roomId,
+            currentSongId: '',
+            isPlaying: false,
+            position: 0,
+            updatedAt: Date.now()
+        };
+
+        await docRef.set(roomState);
+        res.json(roomState);
+    } catch (err) {
+        console.error('Create Room Failed:', err);
+        res.status(500).json({ error: 'Failed to create room: ' + err.message });
+    }
+});
+
+// GET room state
+app.get('/api/rooms/:roomId', async (req, res) => {
+    try {
+        const roomId = req.params.roomId.toUpperCase();
+        const doc = await db.collection('rooms').doc(roomId).get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+        res.json(doc.data());
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch room: ' + err.message });
+    }
+});
+
+// POST update room state
+app.post('/api/rooms/:roomId/update', async (req, res) => {
+    try {
+        const roomId = req.params.roomId.toUpperCase();
+        const { currentSongId, isPlaying, position } = req.body;
+        
+        const docRef = db.collection('rooms').doc(roomId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+
+        const updates = {
+            updatedAt: Date.now()
+        };
+        if (currentSongId !== undefined) updates.currentSongId = currentSongId;
+        if (isPlaying !== undefined) updates.isPlaying = isPlaying;
+        if (position !== undefined) updates.position = parseFloat(position);
+
+        await docRef.update(updates);
+        
+        const updatedDoc = await docRef.get();
+        res.json(updatedDoc.data());
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update room: ' + err.message });
+    }
+});
+
+// GET room stream via Server-Sent Events (SSE)
+app.get('/api/rooms/:roomId/stream', async (req, res) => {
+    const roomId = req.params.roomId.toUpperCase();
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (res.flushHeaders) res.flushHeaders();
+    
+    console.log(`📡 SSE client connected to room: ${roomId}`);
+
+    const docRef = db.collection('rooms').doc(roomId);
+    
+    const unsubscribe = docRef.onSnapshot(doc => {
+        if (doc.exists) {
+            res.write(`data: ${JSON.stringify(doc.data())}\n\n`);
+        } else {
+            res.write(`data: ${JSON.stringify({ error: 'Room deleted' })}\n\n`);
+        }
+    }, err => {
+        console.error(`SSE onSnapshot error for room ${roomId}:`, err);
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    });
+    
+    req.on('close', () => {
+        console.log(`📡 SSE client disconnected from room: ${roomId}`);
+        unsubscribe();
+    });
+});
 
 // Final catch-all middleware for SPA
 app.use((req, res) => {
@@ -562,6 +742,7 @@ app.use((req, res) => {
 });
 
 async function start() { 
+    listenToLibrary();
     await initTelegram();
     app.listen(PORT, () => {
         console.log(`🎵 Server listening on port ${PORT}`);
