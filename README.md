@@ -62,13 +62,15 @@ graph TD
 │   └── package.json           # Backend package configuration
 ├── docs/                      # Architectural plans and deployment logs
 ├── flutter_app/               # Flutter native app source code
+│   ├── assets/                # App assets (mixtapelogo.jpeg)
 │   ├── lib/
 │   │   ├── main.dart          # Flutter App bootstrap and theme setup
-│   │   ├── audio_handler.dart # AudioService wrapper for background audio logic
-│   │   ├── screens/           # UI screen layouts (Main, Album Detail, Queue, Settings)
-│   │   ├── services/          # API & Storage connection services
-│   │   └── widgets/           # Custom reusable widgets (Mini-Player, Cards, Buttons)
-│   └── pubspec.yaml           # Flutter pub dependencies
+│   │   ├── core/              # Global theme and styling constants
+│   │   ├── features/          # Feature-first modules (home, library, player, search)
+│   │   ├── providers/         # State management using Provider (AudioProvider)
+│   │   ├── services/          # API client & local caching
+│   │   └── widgets/           # Global custom reusable widgets (MiniPlayer)
+│   └── pubspec.yaml           # Flutter pub dependencies & launcher icon configurations
 ├── Dockerfile                 # Multi-stage production container setup
 ├── render.yaml                # Render Infrastructure-as-code template
 └── deploy.sh                  # Deploy script for Google Cloud Run

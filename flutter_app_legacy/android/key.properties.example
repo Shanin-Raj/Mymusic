@@ -1,4 +1,0 @@
-storePassword=REPLACED_KEYSTORE_PASSWORD
-keyPassword=REPLACED_KEYSTORE_PASSWORD
-keyAlias=android
-storeFile=../../android/android.keystore
