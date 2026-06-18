@@ -1,0 +1,9 @@
+- [x] Fix mini-player overlapping on system UI controls
+- [x] Implement dynamic bottom padding when mini-player is hidden
+- [x] Increase padding on full-screen timer and queue controls
+- [x] Enable Settings gear icon navigation
+- [x] Implement cover image selection in playlist creation dialog
+- [x] Rebrand app icons using `assets/mixtapelogo.jpeg`
+- [x] Rebuild release APK
+- [x] Clean up legacy code and redundant assets from repository
+- [x] Update project README to reflect new structures
