@@ -5,7 +5,6 @@ const fs = require('fs');
 const { db } = require('./firebase');
 const { addSong } = require('./adder');
 const { getPresignedUrl, deleteFromB2 } = require('./s3');
-const { runMigration } = require('./migrate_to_b2');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
@@ -215,28 +214,6 @@ app.get('/api/stream/:id', async (req, res) => {
     }
 });
 
-app.all('/api/admin/migrate-to-b2', async (req, res) => {
-    console.log('📡 Starting synchronous B2 migration (SSE)...');
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    if (res.flushHeaders) res.flushHeaders();
-    
-    res.write('data: 🏁 Starting Telegram to Backblaze B2 migration...\n\n');
-    
-    try {
-        await runMigration((msg) => {
-            res.write(`data: ${msg}\n\n`);
-        });
-        res.write('data: 🎉 Migration successfully completed!\n\n');
-        res.end();
-    } catch (err) {
-        console.error('❌ Migration failed:', err);
-        res.write(`data: ❌ Migration failed: ${err.message}\n\n`);
-        res.end();
-    }
-});
 
 app.get('/api/stats', async (req, res) => {
     try {
