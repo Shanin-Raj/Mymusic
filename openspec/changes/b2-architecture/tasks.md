@@ -14,8 +14,8 @@
 ## 4. Backend Streaming & Cleanup
 - [x] 4.1 Update `/api/stream/:id` in `server.js` to generate a pre-signed URL and redirect the client with a 302 redirect.
 - [x] 4.2 Delete the local caching logic (`/tmp/music-cache`) and download queue from `server.js`.
-- [ ] 4.3 Delete `telegram.js` and uninstall the `telegram` package (to be completed after Cloud Run migration script is run).
+- [x] 4.3 Delete `telegram.js` and uninstall the `telegram` package (migration complete!).
 
 ## 5. Verification
-- [ ] 5.1 Test adding a new song and verify it uploads to B2.
-- [ ] 5.2 Verify playback in the Flutter app streams directly from B2 with no stuttering.
+- [x] 5.1 Test adding a new song and verify it uploads to B2.
+- [x] 5.2 Verify playback in the Flutter app streams directly from B2 with no stuttering.
