@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -7,8 +5,8 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sonic_vault_flutter.dev"
-    compileSdk = 36
+    namespace = "com.example.flutter_app"
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -17,36 +15,21 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.sonic_vault_flutter.dev"
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId = "com.example.flutter_app"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0-dev"
-    }
-
-    signingConfigs {
-        create("release") {
-            val keyProps = Properties()
-            val keyPropsFile = file(rootProject.projectDir.resolve("key.properties"))
-            if (keyPropsFile.exists()) {
-                keyProps.load(keyPropsFile.inputStream())
-                storeFile = file(keyProps.getProperty("storeFile"))
-                storePassword = keyProps.getProperty("storePassword")
-                keyAlias = keyProps.getProperty("keyAlias")
-                keyPassword = keyProps.getProperty("keyPassword")
-                
-                if (storePassword == null || keyPassword == null || keyAlias == null) {
-                    throw GradleException("key.properties found but some properties are missing (storePassword, keyPassword, or keyAlias)")
-                }
-            } else {
-                println("WARNING: key.properties not found at ${keyPropsFile.absolutePath}. Build will fail at signing stage.")
-            }
-        }
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }

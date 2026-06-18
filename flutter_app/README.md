@@ -1,4 +1,4 @@
-# sonic_vault_flutter
+# flutter_app
 
 A new Flutter project.
 

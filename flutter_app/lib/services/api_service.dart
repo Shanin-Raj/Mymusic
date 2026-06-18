@@ -50,6 +50,19 @@ class ApiService {
     return '$baseUrl/api/stream/$songId';
   }
 
+  static String getImageUrl(String? path) {
+    if (path == null || path.isEmpty) {
+      return 'https://via.placeholder.com/300';
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    // Prepend baseUrl for relative paths (ensuring leading slash if needed)
+    final separator = path.startsWith('/') ? '' : '/';
+    return '$baseUrl$separator$path';
+  }
+
+
   static Future<void> preCache(String songId) async {
     try {
       await http.get(Uri.parse('$baseUrl/api/precache/$songId'));
