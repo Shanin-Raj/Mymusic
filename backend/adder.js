@@ -1,10 +1,11 @@
 const { getPlaylistTracks } = require('./spotify');
 const { downloadSong } = require('./downloader');
-const { uploadToTelegram } = require('./telegram');
+const { uploadToB2 } = require('./s3');
 const { db } = require('./firebase');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const fs = require('fs');
 
 // Helper to get metadata from YT link using yt-dlp
 function getYTMetadata(url) {
@@ -94,19 +95,29 @@ async function addSong(data) {
         // 1. Download (uses directUrl if available, otherwise search)
         const filePath = await downloadSong(track.name, track.artist, directUrl);
 
-        // 2. Upload to Telegram
-        console.log(`⏳ Syncing to private vault...`);
-        const messageId = await uploadToTelegram(filePath, track);
+        // 2. Upload to Backblaze B2
+        console.log(`⏳ Syncing to private Backblaze B2 vault...`);
+        const fileKey = `${track.id}.m4a`;
+        const fileBuffer = fs.readFileSync(filePath);
+        await uploadToB2(fileBuffer, fileKey, 'audio/mp4');
+
+        // Clean up local downloaded file
+        try {
+            fs.unlinkSync(filePath);
+            console.log(`🧹 Cleaned up local file: ${filePath}`);
+        } catch (unlinkErr) {
+            console.warn(`⚠️ Failed to delete local temp file ${filePath}:`, unlinkErr.message);
+        }
 
         // 3. Save to Firestore
         const finalData = {
             ...track,
-            tg_message_id: messageId,
+            fileKey,
             added_at: admin.firestore.FieldValue.serverTimestamp()
         };
         await db.collection('songs').doc(track.id).set(finalData);
 
-        console.log('✨ Successfully added to vault!');
+        console.log('✨ Successfully added to B2 vault!');
         return finalData;
 
     } catch (err) {

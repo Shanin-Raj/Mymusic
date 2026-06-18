@@ -2,59 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { Writable, PassThrough } = require('stream');
-const { TelegramClient } = require('telegram');
-const { StringSession } = require('telegram/sessions');
-const { Api } = require('telegram');
 const { db } = require('./firebase');
 const { addSong } = require('./adder');
-require('dotenv').config();
+const { getPresignedUrl, deleteFromB2 } = require('./s3');
+const { runMigration } = require('./migrate_to_b2');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const apiId = parseInt(process.env.TELEGRAM_API_ID);
-const apiHash = process.env.TELEGRAM_API_HASH;
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
-const channelId = (process.env.TELEGRAM_CHANNEL_ID || "").trim().replace(/['"]/g, "");
-const stringSession = new StringSession(process.env.TELEGRAM_SESSION || "");
-let tgClient = null;
-let tgReady = false;
-
-const CACHE_DIR = '/tmp/music-cache';
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-
-async function initTelegram() {
-    console.log('🔄 Initializing Telegram...');
-    try {
-        await ensureTgConnected();
-        console.log('✅ Telegram initialized and ready');
-    } catch (err) { console.error('❌ Telegram failed:', err); }
-}
-
-async function ensureTgConnected() {
-    if (!apiId || !apiHash) {
-        throw new Error('Telegram credentials not configured');
-    }
-    if (!tgClient) {
-        tgClient = new TelegramClient(stringSession, apiId, apiHash, { 
-            connectionRetries: 10, 
-            useWSS: false,
-            autoReconnect: true,
-            connectionTimeout: 10000 
-        });
-    }
-    if (!tgClient.connected) {
-        console.log('📡 [Server] Connecting/Reconnecting global Telegram client...');
-        await tgClient.start({ botAuthToken: botToken });
-        tgReady = true;
-    }
-}
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/cache', express.static(CACHE_DIR));
 
 // Resolve the images directory robustly (look for sibling folder first, then internal backend folder)
 let IMAGES_DIR = path.join(__dirname, '../images');
@@ -193,15 +152,13 @@ app.delete('/api/songs/:id', async (req, res) => {
         const song = await getSongById(id);
         if (!song) return res.status(404).json({ error: 'Not found' });
 
-        // 1. Delete from Telegram (optional/best-effort)
-        if (song.tg_message_id) {
-            try {
-                if (!tgReady) await initTelegram();
-                await tgClient.deleteMessages(channelId, [song.tg_message_id], { revoke: true });
-                console.log(`Deleted TG message ${song.tg_message_id} for ${song.name}`);
-            } catch (err) {
-                console.warn(`TG Delete Failed for ${id}:`, err.message);
-            }
+        // 1. Delete from Backblaze B2 (optional/best-effort)
+        const fileKey = song.fileKey || `${song.id}.m4a`;
+        try {
+            await deleteFromB2(fileKey);
+            console.log(`Deleted B2 object ${fileKey} for ${song.name}`);
+        } catch (err) {
+            console.warn(`B2 Delete Failed for ${id}:`, err.message);
         }
 
         // 2. Delete from Firestore
@@ -243,206 +200,28 @@ app.get('/api/songs', async (req, res) => {
     }
     catch (err) { res.status(500).json({ error: true, message: 'Library failed' }); }
 });
-const activeDownloads = new Map();
-const downloadQueue = [];
-let isDownloading = false;
-
-function enqueueDownload(song, priority) {
-    return new Promise((resolve, reject) => {
-        const task = { song, priority, resolve, reject };
-        if (priority === 1) {
-            // High priority (stream) goes right after the current active task (index 0)
-            if (downloadQueue.length > 0) {
-                downloadQueue.splice(1, 0, task);
-            } else {
-                downloadQueue.push(task);
-            }
-        } else {
-            downloadQueue.push(task);
-        }
-        processQueue();
-    });
-}
-
-async function processQueue() {
-    if (isDownloading || downloadQueue.length === 0) return;
-    isDownloading = true;
-    
-    const task = downloadQueue[0];
-    try {
-        const result = await performDownload(task.song);
-        task.resolve(result);
-    } catch (err) {
-        task.reject(err);
-    } finally {
-        downloadQueue.shift();
-        isDownloading = false;
-        processQueue();
-    }
-}
-
-async function performDownload(song) {
-    const songId = song.id;
-    const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
-    
-    console.log(`📡 [Telegram] Starting download for song ${songId}`);
-    await ensureTgConnected();
-    const peer = await tgClient.getInputEntity(channelId);
-    const messages = await tgClient.invoke(new Api.channels.GetMessages({ 
-        channel: peer, 
-        id: [new Api.InputMessageID({ id: song.tg_message_id })] 
-    }));
-    if (!messages.messages[0] || !messages.messages[0].media) {
-        throw new Error('Media not found in Telegram');
-    }
-    
-    const media = messages.messages[0].media;
-    let fileSize = undefined;
-    if (media.document && media.document.size) {
-        if (typeof media.document.size === 'object' && typeof media.document.size.toNumber === 'function') {
-            fileSize = media.document.size.toNumber();
-        } else {
-            fileSize = parseInt(media.document.size, 10);
-        }
-    }
-
-    // Write to a temporary file first, then rename atomically to prevent corruption
-    const tempFile = path.join(CACHE_DIR, `${songId}.tmp`);
-    if (fs.existsSync(tempFile)) {
-        try { fs.unlinkSync(tempFile); } catch (e) {}
-    }
-
-    await tgClient.downloadMedia(media, { outputFile: tempFile });
-
-    // Verify tempFile size before renaming
-    if (fs.existsSync(tempFile)) {
-        const stat = fs.statSync(tempFile);
-        if (stat.size > 1024) {
-            fs.renameSync(tempFile, cacheFile);
-            console.log(`✅ [Telegram] Downloaded and cached song ${songId} (${stat.size} bytes)`);
-            return cacheFile;
-        }
-        try { fs.unlinkSync(tempFile); } catch (e) {}
-    }
-    throw new Error('Downloaded Telegram file was empty or corrupted');
-}
-
-function checkAndCleanCache(filePath) {
-    if (fs.existsSync(filePath)) {
-        try {
-            const stat = fs.statSync(filePath);
-            if (stat.size < 1024) { // 1 KB
-                console.log(`⚠️ Invalid cached file size (${stat.size} bytes). Deleting: ${filePath}`);
-                fs.unlinkSync(filePath);
-                return false;
-            }
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-    return false;
-}
-
-async function downloadSongFromTelegram(song, priority = 2) {
-    const songId = song.id;
-    const cacheFile = path.join(CACHE_DIR, `${songId}.m4a`);
-    
-    // Check if the file is already fully downloaded
-    if (checkAndCleanCache(cacheFile) && !activeDownloads.has(songId)) {
-        return cacheFile;
-    }
-    
-    // If a download is already in progress, return the existing promise
-    if (activeDownloads.has(songId)) {
-        console.log(`ℹ️ [Telegram] Re-using active/queued download for song ${songId}`);
-        return activeDownloads.get(songId);
-    }
-    
-    console.log(`📡 [Telegram] Enqueueing download for song ${songId} (priority: ${priority})`);
-    const downloadPromise = enqueueDownload(song, priority);
-    activeDownloads.set(songId, downloadPromise);
-    
-    downloadPromise.finally(() => {
-        activeDownloads.delete(songId);
-    });
-    
-    return downloadPromise;
-}
-
-const MIME_TYPES = {
-    '.m4a': 'audio/mp4',
-    '.mp3': 'audio/mpeg',
-    '.ogg': 'audio/ogg',
-    '.opus': 'audio/ogg',
-    '.flac': 'audio/flac',
-    '.wav': 'audio/wav',
-    '.aac': 'audio/aac',
-    '.webm': 'audio/webm',
-};
-
-function getMimeType(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    return MIME_TYPES[ext] || 'audio/mp4';
-}
 
 app.get('/api/stream/:id', async (req, res) => {
     try {
         const song = await getSongById(req.params.id);
-        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
+        if (!song) return res.status(404).json({ error: true, message: 'Not found' });
 
-        const cacheFile = path.join(CACHE_DIR, `${song.id}.m4a`);
-
-        // If already cached and not currently downloading, serve immediately
-        if (checkAndCleanCache(cacheFile) && !activeDownloads.has(song.id)) {
-            return streamFile(cacheFile, req, res);
-        }
-
-        const downloadPromise = downloadSongFromTelegram(song, 1);
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('TIMEOUT')), 50000)
-        );
-
-        try {
-            const filePath = await Promise.race([downloadPromise, timeoutPromise]);
-            return streamFile(filePath, req, res);
-        } catch (err) {
-            if (err.message === 'TIMEOUT') {
-                return res.status(503).json({ error: true, type: 'TIMEOUT', message: 'Telegram download timed out. Try again.' });
-            }
-            throw err;
-        }
+        const key = song.fileKey || `${song.id}.m4a`;
+        const presignedUrl = await getPresignedUrl(key, 3600);
+        res.redirect(302, presignedUrl);
     } catch (err) {
         console.error('Stream failed:', err);
         res.status(500).json({ error: true, message: 'Stream failed: ' + err.message });
     }
 });
 
-function streamFile(filePath, req, res) {
-    const stat = fs.statSync(filePath);
-    const mime = getMimeType(filePath);
-    const range = req.headers.range;
-    if (range) {
-        const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
-        const chunkSize = (end - start) + 1;
-        res.writeHead(206, {
-            'Content-Range': `bytes ${start}-${end}/${stat.size}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': chunkSize,
-            'Content-Type': mime,
-        });
-        fs.createReadStream(filePath, { start, end }).pipe(res);
-    } else {
-        res.writeHead(200, {
-            'Content-Length': stat.size,
-            'Content-Type': mime,
-            'Accept-Ranges': 'bytes',
-        });
-        fs.createReadStream(filePath).pipe(res);
-    }
-}
+app.post('/api/admin/migrate-to-b2', async (req, res) => {
+    console.log('📡 Received request to trigger B2 migration in background...');
+    runMigration().catch(err => {
+        console.error('❌ Background migration failed:', err);
+    });
+    res.json({ status: 'started', message: 'Telegram-to-B2 migration started in the background. Check server logs.' });
+});
 
 app.get('/api/stats', async (req, res) => {
     try {
@@ -452,17 +231,8 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.get('/api/precache/:id', async (req, res) => {
-    try {
-        const song = await getSongById(req.params.id);
-        if (!song || !song.tg_message_id) return res.status(404).json({ error: true, message: 'Not found' });
-
-        // Enqueue with low priority (2) - it will execute automatically after any active stream downloads finish
-        await downloadSongFromTelegram(song, 2);
-        res.json({ status: 'ok' });
-    } catch (e) {
-        console.error('Precache failed:', e);
-        res.status(500).send();
-    }
+    // Pre-caching is obsolete under B2 architecture; return success immediately
+    res.json({ status: 'ok', message: 'Pre-caching not required' });
 });
 
 app.get('/api/playlists', async (req, res) => {
@@ -770,7 +540,6 @@ app.use((req, res) => {
 
 async function start() { 
     listenToLibrary();
-    await initTelegram();
     app.listen(PORT, () => {
         console.log(`🎵 Server listening on port ${PORT}`);
     });
