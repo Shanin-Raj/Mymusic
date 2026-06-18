@@ -8,6 +8,7 @@ import '../../providers/audio_provider.dart';
 import '../../widgets/now_playing_animation.dart';
 import 'settings_screen.dart';
 import 'queue_screen.dart';
+import 'room_bottom_sheet.dart';
 import '../../services/api_service.dart';
 
 class NowPlayingScreen extends StatelessWidget {
@@ -80,18 +81,46 @@ class NowPlayingScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Discovery',
+                          audioProvider.activeRoomId != null ? 'Room: ${audioProvider.activeRoomId}' : 'Discovery',
                           style: GoogleFonts.nunito(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: primaryTextColor,
+                            color: audioProvider.activeRoomId != null ? MyColors.greenColor : primaryTextColor,
                           ),
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: Icon(Icons.more_vert, color: iconColor),
-                      onPressed: () {},
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Stack(
+                            children: [
+                              Icon(Icons.cell_tower, color: iconColor),
+                              if (audioProvider.activeRoomId != null)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: MyColors.greenColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => const RoomBottomSheet(),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
