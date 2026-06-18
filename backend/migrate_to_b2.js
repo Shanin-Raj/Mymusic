@@ -13,12 +13,24 @@ const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const channelId = (process.env.TELEGRAM_CHANNEL_ID || "").trim().replace(/['"]/g, "");
 const stringSession = new StringSession(process.env.TELEGRAM_SESSION || "");
 
-async function runMigration() {
-    console.log('🏁 Starting Telegram to Backblaze B2 migration...');
+async function runMigration(logCallback) {
+    const log = (msg) => {
+        console.log(msg);
+        if (logCallback) {
+            try {
+                logCallback(msg);
+            } catch (err) {
+                // Ignore callback write errors to prevent crashing if client disconnects
+            }
+        }
+    };
+
+    log('🏁 Starting Telegram to Backblaze B2 migration...');
     
     if (!apiId || !apiHash || !botToken || !channelId) {
-        console.error('❌ Missing Telegram environment variables. Cannot proceed.');
-        process.exit(1);
+        log('❌ Missing Telegram environment variables. Cannot proceed.');
+        if (require.main === module) process.exit(1);
+        throw new Error('Missing Telegram environment variables');
     }
     
     // Create downloads dir if it doesn't exist
@@ -28,26 +40,26 @@ async function runMigration() {
     }
 
     // 1. Fetch songs from Firestore
-    console.log('📡 Fetching songs from Firestore...');
+    log('📡 Fetching songs from Firestore...');
     const snapshot = await db.collection('songs').get();
     const songs = [];
     snapshot.forEach(doc => {
         songs.push(doc.data());
     });
 
-    console.log(`📋 Found ${songs.length} total songs in Firestore.`);
+    log(`📋 Found ${songs.length} total songs in Firestore.`);
     
     // Filter songs that need migration
     const songsToMigrate = songs.filter(s => !s.fileKey);
-    console.log(`🔍 ${songsToMigrate.length} songs need migration (missing fileKey).`);
+    log(`🔍 ${songsToMigrate.length} songs need migration (missing fileKey).`);
 
     if (songsToMigrate.length === 0) {
-        console.log('✅ All songs are already migrated!');
+        log('✅ All songs are already migrated!');
         return;
     }
 
     // 2. Initialize Telegram Client
-    console.log('📡 Connecting to Telegram...');
+    log('📡 Connecting to Telegram...');
     const tgClient = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
         useWSS: true,
@@ -56,7 +68,7 @@ async function runMigration() {
     });
     
     await tgClient.start({ botAuthToken: botToken });
-    console.log('✅ Connected to Telegram');
+    log('✅ Connected to Telegram');
     
     const peer = await tgClient.getInputEntity(channelId);
     
@@ -66,10 +78,10 @@ async function runMigration() {
     for (let i = 0; i < songsToMigrate.length; i++) {
         const song = songsToMigrate[i];
         const progress = `[${i + 1}/${songsToMigrate.length}]`;
-        console.log(`\n⏳ ${progress} Processing: "${song.name}" by ${song.artist} (ID: ${song.id})`);
+        log(`⏳ ${progress} Processing: "${song.name}" by ${song.artist} (ID: ${song.id})`);
         
         if (!song.tg_message_id) {
-            console.log(`⚠️ Skip: Song does not have a tg_message_id`);
+            log(`   ⚠️ Skip: Song does not have a tg_message_id`);
             failCount++;
             continue;
         }
@@ -82,7 +94,7 @@ async function runMigration() {
                 fs.unlinkSync(tempFile);
             }
 
-            console.log(`   Downloading from Telegram message ${song.tg_message_id}...`);
+            log(`   Downloading from Telegram message ${song.tg_message_id}...`);
             const messages = await tgClient.invoke(new Api.channels.GetMessages({
                 channel: peer,
                 id: [new Api.InputMessageID({ id: parseInt(song.tg_message_id, 10) })]
@@ -100,23 +112,23 @@ async function runMigration() {
             }
 
             const fileSize = fs.statSync(tempFile).size;
-            console.log(`   Downloaded successfully (${(fileSize / 1024 / 1024).toFixed(2)} MB). Uploading to B2...`);
+            log(`   Downloaded successfully (${(fileSize / 1024 / 1024).toFixed(2)} MB). Uploading to B2...`);
 
             // Read buffer & upload to B2
             const fileKey = `${song.id}.m4a`;
             const buffer = fs.readFileSync(tempFile);
             await uploadToB2(buffer, fileKey, 'audio/mp4');
-            console.log(`   Uploaded to B2 with key: ${fileKey}`);
+            log(`   Uploaded to B2 with key: ${fileKey}`);
 
             // Update Firestore
             await db.collection('songs').doc(song.id).update({
                 fileKey: fileKey
             });
-            console.log(`   Updated Firestore document.`);
+            log(`   Updated Firestore document.`);
 
             successCount++;
         } catch (err) {
-            console.error(`   ❌ Failed to migrate song:`, err.message);
+            log(`   ❌ Failed to migrate: ${err.message}`);
             failCount++;
         } finally {
             // Clean up temp file
@@ -130,13 +142,11 @@ async function runMigration() {
         }
     }
 
-    console.log('\n📡 Disconnecting from Telegram...');
+    log('📡 Disconnecting from Telegram...');
     await tgClient.disconnect();
     await tgClient.destroy();
     
-    console.log(`\n🎉 Migration finished!`);
-    console.log(`   Success: ${successCount}`);
-    console.log(`   Failed: ${failCount}`);
+    log(`🎉 Migration finished! Success: ${successCount}, Failed: ${failCount}`);
 }
 
 if (require.main === module) {

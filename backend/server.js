@@ -215,12 +215,27 @@ app.get('/api/stream/:id', async (req, res) => {
     }
 });
 
-app.post('/api/admin/migrate-to-b2', async (req, res) => {
-    console.log('📡 Received request to trigger B2 migration in background...');
-    runMigration().catch(err => {
-        console.error('❌ Background migration failed:', err);
-    });
-    res.json({ status: 'started', message: 'Telegram-to-B2 migration started in the background. Check server logs.' });
+app.all('/api/admin/migrate-to-b2', async (req, res) => {
+    console.log('📡 Starting synchronous B2 migration (SSE)...');
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (res.flushHeaders) res.flushHeaders();
+    
+    res.write('data: 🏁 Starting Telegram to Backblaze B2 migration...\n\n');
+    
+    try {
+        await runMigration((msg) => {
+            res.write(`data: ${msg}\n\n`);
+        });
+        res.write('data: 🎉 Migration successfully completed!\n\n');
+        res.end();
+    } catch (err) {
+        console.error('❌ Migration failed:', err);
+        res.write(`data: ❌ Migration failed: ${err.message}\n\n`);
+        res.end();
+    }
 });
 
 app.get('/api/stats', async (req, res) => {
