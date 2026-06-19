@@ -4,7 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import '../core/audio_handler.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
-import '../services/ws_room_service.dart';
+import '../services/room_service.dart';
 
 class AudioProvider with ChangeNotifier {
   late MyAudioHandler audioHandler;
@@ -12,9 +12,9 @@ class AudioProvider with ChangeNotifier {
   MediaItem? _currentAppMediaItem;
   PlaybackState? _currentAppPlaybackState;
 
-  final WsRoomService _roomService = WsRoomService();
+  final RoomService _roomService = RoomService();
   String? _activeRoomId;
-  bool _suppressBroadcast = false;
+  bool _isSyncingFromServer = false;
 
   List<String> _likedSongIds = [];
   List<String> get likedSongIds => _likedSongIds;
@@ -25,7 +25,7 @@ class AudioProvider with ChangeNotifier {
   int get sleepTimerMinutes => _sleepTimerMinutes;
 
   String? get activeRoomId => _activeRoomId;
-  bool get isSyncingFromServer => _suppressBroadcast;
+  bool get isSyncingFromServer => _isSyncingFromServer;
 
   void setSleepTimer(int minutes) {
     _sleepTimer?.cancel();
@@ -85,126 +85,108 @@ class AudioProvider with ChangeNotifier {
       notifyListeners();
     });
 
-    _roomService.eventStream.listen(_handleRoomEvent);
+    _roomService.roomStream.listen(_handleRoomUpdate);
   }
 
   Future<void> createRoom() async {
     final state = await _roomService.createRoom();
-    _activeRoomId = state['roomId'];
+    _activeRoomId = state.roomId;
     notifyListeners();
-    _roomService.connect(_activeRoomId!);
+    await _roomService.connectToStream(state.roomId);
   }
 
   Future<void> joinRoom(String roomId) async {
     final state = await _roomService.joinRoom(roomId);
-    _activeRoomId = state['roomId'];
+    _activeRoomId = state.roomId;
     notifyListeners();
-    _roomService.connect(_activeRoomId!);
+    await _roomService.connectToStream(state.roomId);
   }
 
   void leaveRoom() {
     _activeRoomId = null;
-    _roomService.disconnect();
+    _roomService.disconnectStream();
     notifyListeners();
   }
 
-  Future<void> _handleRoomEvent(RoomEvent event) async {
-    if (_activeRoomId == null) return;
+  Future<void> _handleRoomUpdate(RoomState state) async {
+    if (_activeRoomId != state.roomId) return;
     
-    _suppressBroadcast = true;
-    try {
-      final now = _roomService.serverNow();
-      final delayMs = event.targetAt - now;
-      final delay = delayMs > 0 ? Duration(milliseconds: delayMs) : Duration.zero;
+    _isSyncingFromServer = true;
 
-      if (event.type == RoomEventType.songChange && event.songId != null) {
-        if (_currentAppMediaItem?.id != event.songId) {
-          final songs = await ApiService.fetchSongs();
-          final song = songs.firstWhere((s) => (s['id'] ?? s['_id']).toString() == event.songId, orElse: () => null);
-          if (song != null) {
-            await playSong(song, songs, broadcast: false);
-          }
+    try {
+      // 1. Sync current song
+      if (_currentAppMediaItem?.id != state.currentSongId && state.currentSongId.isNotEmpty) {
+        final songs = await ApiService.fetchSongs();
+        final song = songs.firstWhere((s) => (s['id'] ?? s['_id']).toString() == state.currentSongId, orElse: () => null);
+        if (song != null) {
+          await playSong(song, songs);
         }
-      } else if (event.type == RoomEventType.play) {
-        if (event.songId != null && _currentAppMediaItem?.id != event.songId) {
-           final songs = await ApiService.fetchSongs();
-           final song = songs.firstWhere((s) => (s['id'] ?? s['_id']).toString() == event.songId, orElse: () => null);
-           if (song != null) {
-             await playSong(song, songs, broadcast: false);
-           }
-        }
-        if (event.position != null) {
-          await audioHandler.seek(Duration(milliseconds: (event.position! * 1000).toInt()));
-        }
-        if (delay.inMilliseconds > 0) {
-          await Future.delayed(delay);
-        }
+      }
+
+      // 2. Sync play/pause
+      if (state.isPlaying && !(isPlaying)) {
         await audioHandler.play();
-      } else if (event.type == RoomEventType.pause) {
-        if (delay.inMilliseconds > 0) {
-          await Future.delayed(delay);
-        }
+      } else if (!state.isPlaying && isPlaying) {
         await audioHandler.pause();
-        if (event.position != null) {
-          await audioHandler.seek(Duration(milliseconds: (event.position! * 1000).toInt()));
-        }
-      } else if (event.type == RoomEventType.seek && event.position != null) {
-        await audioHandler.seek(Duration(milliseconds: (event.position! * 1000).toInt()));
+      }
+
+      // 3. Soft Sync position
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final elapsed = now - state.updatedAt;
+      final expectedPosition = state.position + (state.isPlaying && elapsed > 0 ? (elapsed / 1000.0) : 0);
+      
+      final currentPosStreamValue = await audioHandler.appPositionStream.first;
+      final currentPosSec = currentPosStreamValue.inMilliseconds / 1000.0;
+      
+      if ((currentPosSec - expectedPosition).abs() > 2.0) {
+        await audioHandler.seek(Duration(milliseconds: (expectedPosition * 1000).toInt()));
       }
     } catch (e) {
-      debugPrint('Error handling room event: $e');
+      debugPrint('Error handling room update: $e');
     } finally {
-      // Small delay to ensure any callbacks from just_audio are suppressed
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _suppressBroadcast = false;
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _isSyncingFromServer = false;
       });
     }
   }
 
-  Future<double> _getCurrentPosition() async {
-    final currentPosStreamValue = await audioHandler.appPositionStream.first;
-    return currentPosStreamValue.inMilliseconds / 1000.0;
+  Future<void> _broadcastState({String? songId, bool? playing, Duration? position}) async {
+    if (_activeRoomId != null && !_isSyncingFromServer) {
+      final currentSong = songId ?? _currentAppMediaItem?.id ?? '';
+      final isNowPlaying = playing ?? isPlaying;
+      final posSec = (position ?? await audioHandler.appPositionStream.first).inMilliseconds / 1000.0;
+      
+      await _roomService.updateState(_activeRoomId!, currentSong, isNowPlaying, posSec);
+    }
   }
 
   Future<void> play() async {
-    if (_activeRoomId != null && !_suppressBroadcast) {
-      _roomService.sendPlay(_currentAppMediaItem?.id ?? '', await _getCurrentPosition());
-    }
     await audioHandler.play();
+    await _broadcastState(playing: true);
   }
   
   Future<void> pause() async {
-    if (_activeRoomId != null && !_suppressBroadcast) {
-      _roomService.sendPause(await _getCurrentPosition());
-    }
     await audioHandler.pause();
+    await _broadcastState(playing: false);
   }
 
   Future<void> skipToNext() async {
     await audioHandler.skipToNext();
-    if (_activeRoomId != null && !_suppressBroadcast) {
-      Future.delayed(const Duration(milliseconds: 300), () async {
-         _roomService.sendSongChange(_currentAppMediaItem?.id ?? '');
-         _roomService.sendPlay(_currentAppMediaItem?.id ?? '', 0);
-      });
-    }
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      await _broadcastState();
+    });
   }
 
   Future<void> skipToPrevious() async {
     await audioHandler.skipToPrevious();
-    if (_activeRoomId != null && !_suppressBroadcast) {
-      Future.delayed(const Duration(milliseconds: 300), () async {
-         _roomService.sendSongChange(_currentAppMediaItem?.id ?? '');
-         _roomService.sendPlay(_currentAppMediaItem?.id ?? '', 0);
-      });
-    }
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      await _broadcastState();
+    });
   }
 
   Future<void> seek(Duration position) async {
-    if (_activeRoomId != null && !_suppressBroadcast) {
-      _roomService.sendSeek(position.inMilliseconds / 1000.0);
-    }
     await audioHandler.seek(position);
+    await _broadcastState(position: position);
   }
 
   Future<void> setShuffleMode(AudioServiceShuffleMode mode) async => await audioHandler.setShuffleMode(mode);
@@ -230,7 +212,7 @@ class AudioProvider with ChangeNotifier {
     }
   }
 
-  Future<void> playSong(Map<String, dynamic> song, List<dynamic> allSongs, {bool broadcast = true}) async {
+  Future<void> playSong(Map<String, dynamic> song, List<dynamic> allSongs) async {
     try {
       final mediaItems = allSongs.map((s) {
         final songId = (s['id'] ?? s['_id'] ?? '').toString();
@@ -254,9 +236,8 @@ class AudioProvider with ChangeNotifier {
         await audioHandler.updateQueueAndPlay(mediaItems, startIndex);
       }
       
-      if (broadcast && _activeRoomId != null && !_suppressBroadcast) {
-         _roomService.sendSongChange(targetId);
-         _roomService.sendPlay(targetId, 0);
+      if (!_isSyncingFromServer) {
+         await _broadcastState(songId: targetId, playing: true, position: Duration.zero);
       }
     } catch (e) {
       debugPrint('Error in playSong: $e');
@@ -285,9 +266,8 @@ class AudioProvider with ChangeNotifier {
       await setShuffleMode(AudioServiceShuffleMode.none);
       await audioHandler.updateQueueAndPlay(mediaItems, 0);
       
-      if (_activeRoomId != null && !_suppressBroadcast && mediaItems.isNotEmpty) {
-         _roomService.sendSongChange(mediaItems[0].id);
-         _roomService.sendPlay(mediaItems[0].id, 0);
+      if (!_isSyncingFromServer && mediaItems.isNotEmpty) {
+         await _broadcastState(songId: mediaItems[0].id, playing: true, position: Duration.zero);
       }
     } catch (e) {
       debugPrint('Error in shufflePlay: $e');
