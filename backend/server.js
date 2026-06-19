@@ -2,12 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 const { db } = require('./firebase');
 const { addSong } = require('./adder');
 const { getPresignedUrl, deleteFromB2 } = require('./s3');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 const PORT = process.env.PORT || 8080;
 
 app.use(cors());
@@ -495,33 +499,80 @@ app.post('/api/rooms/:roomId/update', async (req, res) => {
     }
 });
 
-// GET room stream via Server-Sent Events (SSE)
-app.get('/api/rooms/:roomId/stream', async (req, res) => {
-    const roomId = req.params.roomId.toUpperCase();
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    if (res.flushHeaders) res.flushHeaders();
-    
-    console.log(`📡 SSE client connected to room: ${roomId}`);
+// --- WebSocket Room Logic ---
+const activeRooms = new Map(); // roomId -> { hostWs: WebSocket, clients: Set<WebSocket> }
 
-    const docRef = db.collection('rooms').doc(roomId);
-    
-    const unsubscribe = docRef.onSnapshot(doc => {
-        if (doc.exists) {
-            res.write(`data: ${JSON.stringify(doc.data())}\n\n`);
-        } else {
-            res.write(`data: ${JSON.stringify({ error: 'Room deleted' })}\n\n`);
+wss.on('connection', (ws) => {
+    let currentRoom = null;
+
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+
+            if (data.type === 'PING') {
+                ws.send(JSON.stringify({ type: 'PONG', serverTime: Date.now() }));
+                return;
+            }
+
+            if (data.type === 'JOIN_ROOM') {
+                const { roomId } = data;
+                currentRoom = roomId;
+
+                if (!activeRooms.has(roomId)) {
+                    activeRooms.set(roomId, { hostWs: ws, clients: new Set() });
+                }
+                const room = activeRooms.get(roomId);
+                room.clients.add(ws);
+                
+                // If the first person to join after room becomes empty, make them host
+                if (!room.hostWs || room.hostWs.readyState !== ws.OPEN) {
+                    room.hostWs = ws;
+                }
+                
+                // Immediately send current server time to help sync
+                ws.send(JSON.stringify({ type: 'PONG', serverTime: Date.now() }));
+                return;
+            }
+
+            // The following commands should ideally only be from the host, 
+            // but we'll accept them from anyone for simplicity unless strict auth is needed.
+            // We broadcast them to all OTHER clients in the room.
+            if (['PLAY', 'PAUSE', 'SEEK', 'SONG_CHANGE'].includes(data.type)) {
+                if (currentRoom && activeRooms.has(currentRoom)) {
+                    const room = activeRooms.get(currentRoom);
+                    // Broadcast to all clients in the room (including sender, or just others?)
+                    // Let's broadcast to all other clients to keep them in sync, 
+                    // sender already processed it locally.
+                    room.clients.forEach(client => {
+                        if (client !== ws && client.readyState === ws.OPEN) {
+                            client.send(JSON.stringify(data));
+                        }
+                    });
+                }
+            }
+
+        } catch (e) {
+            console.error('WS Message Error:', e);
         }
-    }, err => {
-        console.error(`SSE onSnapshot error for room ${roomId}:`, err);
-        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
     });
-    
-    req.on('close', () => {
-        console.log(`📡 SSE client disconnected from room: ${roomId}`);
-        unsubscribe();
+
+    ws.on('close', () => {
+        if (currentRoom && activeRooms.has(currentRoom)) {
+            const room = activeRooms.get(currentRoom);
+            room.clients.delete(ws);
+            
+            if (room.hostWs === ws) {
+                // Host disconnected, promote another client to host if any exist
+                if (room.clients.size > 0) {
+                    room.hostWs = room.clients.values().next().value;
+                } else {
+                    room.hostWs = null;
+                    // We could remove the room from activeRooms if empty, 
+                    // but it's harmless to leave it or we can clean it up.
+                    activeRooms.delete(currentRoom);
+                }
+            }
+        }
     });
 });
 
@@ -532,7 +583,7 @@ app.use((req, res) => {
 
 async function start() { 
     listenToLibrary();
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`🎵 Server listening on port ${PORT}`);
     });
 }
