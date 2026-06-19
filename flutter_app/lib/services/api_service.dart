@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ApiService {
   // Base URL - will be configurable later for Render migration
-  static String baseUrl = 'https://mymusic-ibgr.onrender.com'; // Default for local testing
+  static String baseUrl = 'https://shanin-05-mixtape.hf.space'; // Default for local testing
 
   // Cache variables to prevent lagging and redundant network requests
   static List<dynamic>? _cachedSongs;
