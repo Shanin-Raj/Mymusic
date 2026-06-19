@@ -28,4 +28,4 @@ if (serviceAccount && !admin.apps.length) {
 const db = admin.firestore();
 db.settings({ ignoreUndefinedProperties: true });
 
-module.exports = { db };
+module.exports = { db, admin };

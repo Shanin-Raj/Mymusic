@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ApiService {
   // Base URL - will be configurable later for Render migration
@@ -12,11 +13,23 @@ class ApiService {
   static Future<List<dynamic>>? _songsFuture;
   static Future<List<dynamic>>? _playlistsFuture;
 
-  static Future<List<dynamic>> fetchSongs({bool forceRefresh = false}) {
+  static Future<Map<String, String>> getHeaders({bool isJson = false}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : null;
+    return {
+      if (isJson) 'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  static Future<List<dynamic>> fetchSongs({bool forceRefresh = false}) async {
     if (_songsFuture != null && !forceRefresh) {
       return _songsFuture!;
     }
-    _songsFuture = http.get(Uri.parse('$baseUrl/api/songs')).then((response) {
+    
+    _songsFuture = Future(() async {
+      final headers = await getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/api/songs'), headers: headers);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         _cachedSongs = data['songs'] ?? [];
@@ -29,11 +42,14 @@ class ApiService {
     return _songsFuture!;
   }
 
-  static Future<List<dynamic>> fetchPlaylists({bool forceRefresh = false}) {
+  static Future<List<dynamic>> fetchPlaylists({bool forceRefresh = false}) async {
     if (_playlistsFuture != null && !forceRefresh) {
       return _playlistsFuture!;
     }
-    _playlistsFuture = http.get(Uri.parse('$baseUrl/api/playlists')).then((response) {
+    
+    _playlistsFuture = Future(() async {
+      final headers = await getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/api/playlists'), headers: headers);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         _cachedPlaylists = data['playlists'] ?? [];
@@ -65,16 +81,18 @@ class ApiService {
 
   static Future<void> preCache(String songId) async {
     try {
-      await http.get(Uri.parse('$baseUrl/api/precache/$songId'));
+      final headers = await getHeaders();
+      await http.get(Uri.parse('$baseUrl/api/precache/$songId'), headers: headers);
     } catch (e) {
       debugPrint('Precache failed: $e');
     }
   }
 
   static Future<Map<String, dynamic>> addSong(String? url, String? name, String? artist) async {
+    final headers = await getHeaders(isJson: true);
     final response = await http.post(
       Uri.parse('$baseUrl/api/add-song'),
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({'url': url, 'name': name, 'artist': artist}),
     );
     // Invalidate songs cache on modification
@@ -84,7 +102,8 @@ class ApiService {
   }
 
   static Future<bool> deleteSong(String id) async {
-    final response = await http.delete(Uri.parse('$baseUrl/api/songs/$id'));
+    final headers = await getHeaders();
+    final response = await http.delete(Uri.parse('$baseUrl/api/songs/$id'), headers: headers);
     if (response.statusCode == 200) {
       // Invalidate songs cache on modification
       _cachedSongs = null;
@@ -95,9 +114,10 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> createPlaylist(String name, {String? image}) async {
+    final headers = await getHeaders(isJson: true);
     final response = await http.post(
       Uri.parse('$baseUrl/api/playlists'),
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'name': name,
         if (image != null) 'image': image,
@@ -110,16 +130,18 @@ class ApiService {
   }
 
   static Future<bool> addSongToPlaylist(String playlistId, String songId) async {
+    final headers = await getHeaders(isJson: true);
     final response = await http.post(
       Uri.parse('$baseUrl/api/playlists/$playlistId/add'),
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({'songId': songId}),
     );
     return response.statusCode == 200;
   }
 
   static Future<Map<String, dynamic>> fetchPlaylistDetail(String playlistId) async {
-    final response = await http.get(Uri.parse('$baseUrl/api/playlists/$playlistId'));
+    final headers = await getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/api/playlists/$playlistId'), headers: headers);
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -129,7 +151,8 @@ class ApiService {
 
   static Future<List<String>> fetchAvailableImages() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/api/images'));
+      final headers = await getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/api/images'), headers: headers);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final list = data['images'] as List? ?? [];
@@ -142,7 +165,8 @@ class ApiService {
   }
 
   static Future<bool> deletePlaylist(String playlistId) async {
-    final response = await http.delete(Uri.parse('$baseUrl/api/playlists/$playlistId'));
+    final headers = await getHeaders();
+    final response = await http.delete(Uri.parse('$baseUrl/api/playlists/$playlistId'), headers: headers);
     if (response.statusCode == 200) {
       _cachedPlaylists = null;
       _playlistsFuture = null;
@@ -152,12 +176,14 @@ class ApiService {
   }
 
   static Future<bool> removeSongFromPlaylist(String playlistId, String songId) async {
-    final response = await http.delete(Uri.parse('$baseUrl/api/playlists/$playlistId/songs/$songId'));
+    final headers = await getHeaders();
+    final response = await http.delete(Uri.parse('$baseUrl/api/playlists/$playlistId/songs/$songId'), headers: headers);
     return response.statusCode == 200;
   }
 
   static Future<Map<String, dynamic>> fetchSongDetail(String id) async {
-    final response = await http.get(Uri.parse('$baseUrl/api/songs/$id'));
+    final headers = await getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/api/songs/$id'), headers: headers);
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -166,7 +192,8 @@ class ApiService {
   }
 
   static Future<int> fetchServerTime() async {
-    final response = await http.get(Uri.parse('$baseUrl/api/time'));
+    final headers = await getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/api/time'), headers: headers);
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return data['time'] as int;
@@ -174,6 +201,4 @@ class ApiService {
       throw Exception('Failed to fetch server time');
     }
   }
-
-
 }

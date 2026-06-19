@@ -1,10 +1,12 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { db } = require('./firebase');
+const { db, admin } = require('./firebase');
 const { addSong } = require('./adder');
 const { getPresignedUrl, deleteFromB2 } = require('./s3');
+const { initSyncEngine } = require('./sync_engine');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
@@ -86,6 +88,45 @@ function getAbsoluteImageUrl(req, relativePath) {
 app.get('/.well-known/assetlinks.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
+
+// Authentication Middleware
+async function authenticateToken(req, res, next) {
+    if (req.method === 'OPTIONS') return next();
+
+    // If it's a GET request, bypass token requirement but parse it if available
+    if (req.method === 'GET') {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (token) {
+            try {
+                const decodedToken = await admin.auth().verifyIdToken(token);
+                req.user = decodedToken;
+            } catch (error) {
+                console.error('Firebase Auth Optional Error (GET):', error.message);
+            }
+        }
+        return next();
+    }
+
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication token is missing.' });
+    }
+
+    try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        req.user = decodedToken;
+        next();
+    } catch (error) {
+        console.error('Firebase Auth Error:', error.message);
+        return res.status(403).json({ error: 'Invalid or expired authentication token.' });
+    }
+}
+
+app.use('/api', authenticateToken);
+
 let songsCache = [];
 let playlistsCache = [];
 
@@ -417,7 +458,9 @@ app.use((req, res) => {
 
 async function start() { 
     listenToLibrary();
-    app.listen(PORT, () => {
+    const server = http.createServer(app);
+    initSyncEngine(server, admin);
+    server.listen(PORT, () => {
         console.log(`🎵 Server listening on port ${PORT}`);
     });
 }

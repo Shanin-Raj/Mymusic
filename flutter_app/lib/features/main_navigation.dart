@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'home/home_screen.dart';
 import 'search/search_screen.dart';
 import 'library/library_screen.dart';
+import 'rooms/room_screen.dart';
 import '../widgets/mini_player.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -21,6 +22,7 @@ class _MainNavigationState extends State<MainNavigation> {
     HomeScreen(),
     SearchScreen(),
     LibraryScreen(),
+    RoomScreen(),
   ];
 
   @override
@@ -52,6 +54,10 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(
             icon: Icon(Icons.library_music), // Use library_music for now, later custom icon
             label: 'Your Library',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups),
+            label: 'Rooms',
           ),
         ],
       ),

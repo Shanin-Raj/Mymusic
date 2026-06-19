@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme.dart';
 import 'core/theme_provider.dart';
 import 'providers/audio_provider.dart';
@@ -8,6 +10,13 @@ import 'features/main_navigation.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  try {
+    await Firebase.initializeApp();
+    await FirebaseAuth.instance.signInAnonymously();
+  } catch (e) {
+    debugPrint('Firebase Auth Error: $e');
+  }
+
   final audioProvider = AudioProvider();
   await audioProvider.init();
   
