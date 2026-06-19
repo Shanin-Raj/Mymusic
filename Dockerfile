@@ -23,11 +23,10 @@ RUN npm ci --production --silent || npm install --production --silent
 
 # Copy application source
 COPY backend/ ./backend/
-COPY images/ /app/images/
 
-# Create necessary directories for cache and downloads
-RUN mkdir -p /app/backend/cache /app/backend/downloads && \
-    chmod -R 777 /app/backend/cache /app/backend/downloads
+# Create necessary directories for cache, downloads, and images
+RUN mkdir -p /app/backend/cache /app/backend/downloads /app/images && \
+    chmod -R 777 /app/backend/cache /app/backend/downloads /app/images
 
 # Set environment variables
 ENV NODE_ENV=production
