@@ -6,7 +6,6 @@ import '../../providers/audio_provider.dart';
 import '../../widgets/recent_plays_chip.dart';
 import '../../core/constants.dart';
 import '../../features/player/settings_screen.dart';
-import '../../features/player/room_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,34 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Row(
                           children: [
-                            IconButton(
-                              icon: Stack(
-                                children: [
-                                  Icon(Icons.cell_tower, color: titleColor),
-                                  if (audioProvider.activeRoomId != null)
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      child: Container(
-                                        width: 8,
-                                        height: 8,
-                                        decoration: const BoxDecoration(
-                                          color: MyColors.greenColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (context) => const RoomBottomSheet(),
-                                );
-                              },
-                            ),
                             IconButton(
                               icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: titleColor),
                               onPressed: themeProvider.toggleTheme,
