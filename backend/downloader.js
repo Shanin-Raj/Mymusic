@@ -24,7 +24,7 @@ async function downloadSong(songName, artistName, directUrl = null) {
     baseArgs.push('--ffmpeg-location', ffmpegLocation);
   }
 
-  baseArgs.push('-o', outputPath, directUrl ? directUrl : `ytsearch1:${query}`);
+  baseArgs.push('-o', outputPath, '--', directUrl ? directUrl : `ytsearch1:${query}`);
 
   // Determine whether to run yt-dlp directly or via python module
   let cmd = 'yt-dlp';

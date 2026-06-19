@@ -1,29 +1,27 @@
 # 🎵 Mixtape & Sonic Vault
 
 > [!IMPORTANT]
-> **For Personal Use Only.** This project is developed strictly for personal use as a private, self-hosted media streaming vault.
+> **For Personal Use Only.** This project is designed and developed strictly for personal use as a private, self-hosted media streaming vault.
 
-**Mixtape** (the Android APK client) and **Sonic Vault** (the Web App and Backend service) form a self-hosted, cloud-native music streaming platform. It allows you to scrape, download, and catalog high-quality music from YouTube and Spotify links, upload it securely to a private Telegram channel (which serves as a zero-cost media hosting vault), index the catalog in Google Cloud Firestore, and stream it in real-time.
+**Mixtape** (the Flutter mobile client) and **Sonic Vault** (the Node.js/Express backend) form a self-hosted, cloud-native music streaming infrastructure. It allows you to scrape, transcode, and catalog high-quality music from YouTube and Spotify links, store it securely in your own private Backblaze B2 storage bucket, catalog the metadata in Google Cloud Firestore, and stream it on your mobile device in real-time.
 
 ---
 
 ## 🚀 Key Features
 
-### 📡 The Backend (Node.js & Express)
-*   **Smart Music Downloader**: Integrates `yt-dlp` and `ffmpeg` to download high-fidelity audio tracks from YouTube URLs or by searching dynamically.
-*   **Spotify Metadata Resolver**: Scrapes details (album cover, artist, tracks, duration) from Spotify links using `spotify-url-info`.
-*   **Zero-Cost Media Vault**: Stores raw audio files (`.m4a`) as media messages in a private Telegram channel via the MTProto client (`telegram` package).
-*   **Firestore Metadata Sync**: Stores catalog details, playlist configurations, and Telegram message IDs in Google Cloud Firestore.
-*   **Real-time Streaming Engine**: Implements HTTP Range requests (`Accept-Ranges: bytes`) for smooth audio streaming, seeking, and caching.
-*   **Local Precaching**: Caches frequently played tracks in a temporary directory (`/tmp/music-cache`) to minimize Telegram API rate limits.
-*   **PWA/TWA Trusted Web Handshake**: Fully serves Android Trusted Web Activity (TWA) asset link handshakes (`/.well-known/assetlinks.json`).
+### 📡 The Backend (Sonic Vault)
+* **Smart Music Downloader**: Integrates `yt-dlp` and `ffmpeg` to download high-fidelity audio tracks from YouTube URLs or by searching dynamically.
+* **Spotify Metadata Resolver**: Resolves metadata (album art, artist names, titles, duration) from Spotify links.
+* **Private B2 Cloud Storage**: Uploads transcoded `.m4a` files directly to a private Backblaze B2 bucket (via the AWS S3 SDK), ensuring persistent and secure storage.
+* **Firestore Catalog Sync**: Syncs track catalogs, playlists, and listening room states in Google Cloud Firestore.
+* **Secure Redirect Streaming**: Generates short-lived, pre-signed download URLs (1-hour expiration) for audio tracks, redirecting clients securely for direct playback.
+* **TWA Trusted Web Handshake**: Serves Android Trusted Web Activity (TWA) asset link handshakes (`/.well-known/assetlinks.json`).
 
-### 📱 The Frontend (Flutter Client)
-*   **Premium Visual Experience**: Built on the **Sonic Immersion** design system, featuring a deep dark aesthetic (`#121414`), glassmorphic panels, dynamic Montserrat/Hanken Grotesk typography, and "Sonic Green" (`#1DB954`) accents.
-*   **Now Playing Screen**: Features a gorgeous glassmorphic canvas using a blurred image of the active album art, with custom micro-animations.
-*   **Background Playback**: Integrates `just_audio` and `audio_service` to provide seamless background streaming, seeking, lock-screen controls, and system notification integration.
-*   **Playlists & Library**: Full support for creating, adding, and removing songs from custom user playlists, along with sorting by artist, album, and date added.
-*   **Configurable Host**: Seamlessly switches endpoints to connect to local development environments or remote servers.
+### 📱 The Mobile Client (Mixtape)
+* **Premium Visual Design**: Built using a tailored dark theme (`#121414`), glassmorphic panels, custom Montserrat/Hanken Grotesk typography, and Spotify-style accents.
+* **Seamless Background Playback**: Integrates `just_audio` and `audio_service` to provide background audio streaming, seek bars, lock-screen controls, and system media notifications.
+* **Playlists & Library**: Full support for creating playlists, liking songs, and sorting catalogs.
+* **Dynamic Connection**: Easily configure the API endpoint to point to a local development environment or your hosted production server.
 
 ---
 
@@ -31,19 +29,18 @@
 
 ```mermaid
 graph TD
-    A[Spotify/YouTube Link] -->|Submit| B[Express Backend /api/add-song]
-    B -->|Scrape Metadata| C[Spotify URL Info]
-    B -->|Download Audio| D[yt-dlp / FFmpeg]
-    D -->|Audio file .m4a| E[Private Telegram Channel Storage]
-    E -->|Message ID| F[Firestore Database]
+    A[Spotify/YouTube Link] -->|Submit Request| B[Sonic Vault Backend /api/add-song]
+    B -->|Resolve Metadata| C[Spotify Metadata API]
+    B -->|Transcode Audio| D[yt-dlp / FFmpeg]
+    D -->|Audio file .m4a| E[Private Backblaze B2 Bucket]
+    B -->|Sync Track Records| F[Google Firestore]
     
-    G[Flutter App Client] -->|Fetch Catalog| B
-    B -->|Read Tracks| F
-    G -->|Stream Song /api/stream/:id| B
-    B -->|If Cached| H[(Local Disk Cache)]
-    B -->|If Not Cached| I[Download from Telegram Channel]
-    I --> H
-    H -->|Range Stream| G
+    G[Mixtape Flutter App] -->|Fetch Track Catalog| B
+    B -->|Read Collections| F
+    G -->|Stream Track /api/stream/:id| B
+    B -->|Request 1-Hour Presigned URL| E
+    B -->|302 Redirect to Presigned CDN URL| G
+    G -->|Stream Direct Audio| E
 ```
 
 ---
@@ -53,16 +50,17 @@ graph TD
 ```text
 ├── android/                   # Generated Android configuration & TWA manifests
 ├── backend/                   # Node.js + Express API & media processing scripts
-│   ├── adder.js               # Logic for parsing YouTube/Spotify links and adding songs
+│   ├── adder.js               # Resolves Spotify links, spawns yt-dlp, and coordinates uploads
 │   ├── downloader.js          # Core yt-dlp downloader wrapper
-│   ├── telegram.js            # MTProto client wrapper for Telegram uploads/deletions
-│   ├── firebase.js            # Firestore & Admin SDK database connection setup
+│   ├── s3.js                  # Backblaze B2 client configuration & presigned URL utility
+│   ├── firebase.js            # Firestore database connector
 │   ├── server.js              # Express API Server hosting stream, queue, and playlist endpoints
-│   ├── manual_add.js          # Command-line utility for manual music importing
-│   └── package.json           # Backend package configuration
+│   ├── manual_add.js          # CLI utility for importing music manually
+│   ├── .env.example           # Canonical environment configuration template
+│   └── package.json           # Backend dependencies and startup scripts
 ├── docs/                      # Architectural plans and deployment logs
 ├── flutter_app/               # Flutter native app source code
-│   ├── assets/                # App assets (mixtapelogo.jpeg)
+│   ├── assets/                # Images and brand logo assets
 │   ├── lib/
 │   │   ├── main.dart          # Flutter App bootstrap and theme setup
 │   │   ├── core/              # Global theme and styling constants
@@ -70,7 +68,7 @@ graph TD
 │   │   ├── providers/         # State management using Provider (AudioProvider)
 │   │   ├── services/          # API client & local caching
 │   │   └── widgets/           # Global custom reusable widgets (MiniPlayer)
-│   └── pubspec.yaml           # Flutter pub dependencies & launcher icon configurations
+│   └── pubspec.yaml           # Flutter pub dependencies & launcher configurations
 ├── Dockerfile                 # Multi-stage production container setup
 ├── render.yaml                # Render Infrastructure-as-code template
 └── deploy.sh                  # Deploy script for Google Cloud Run
@@ -78,28 +76,55 @@ graph TD
 
 ---
 
-## 🛠️ Getting Started: Backend
+## 🛠️ Getting Started: Backend Setup
 
 ### 📋 Prerequisites
-Ensure you have the following installed on your server or local machine:
-*   [Node.js](https://nodejs.org/) (v18 or higher)
-*   [FFmpeg](https://ffmpeg.org/) (Required for audio format extraction)
-*   [Python](https://www.python.org/) & `yt-dlp` (Must be globally accessible or in the system path)
+Ensure you have the following installed on your machine or server:
+* **Node.js** (v18 or higher)
+* **FFmpeg** (Required for audio format extraction; must be in your system `PATH` or path provided via `.env`)
+* **Python 3** & **yt-dlp** (Must be accessible in your system `PATH`)
 
-### ⚙️ Environment Configuration
-Create a `.env` file in the `backend/` directory:
+### 🔑 1. Backblaze B2 Setup
+1. Log in to your [Backblaze Account](https://www.backblaze.com/).
+2. Create a **Private Bucket** named `MixtapeCloud` (or your preferred name).
+3. Go to **App Keys** and generate a new Application Key.
+4. Note down the following values:
+   * **Endpoint URL** (e.g., `s3.us-east-005.backblazeb2.com` — *omit `https://` in env*)
+   * **Key ID**
+   * **Application Key**
+   * **Bucket Name**
+   * **Region** (e.g., `us-east-005`)
+
+### 🔥 2. Firebase & Firestore Setup
+1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
+2. Initialize **Firestore Database** in production mode or test mode.
+3. Set up a service account: Go to **Project Settings** → **Service Accounts** → Click **Generate new private key**.
+4. Download the generated `.json` file, rename it to `firebase-key.json`, and place it in the `backend/` directory.
+
+### 🎵 3. Spotify API Setup
+1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Create a new application to obtain your client credentials:
+   * **Client ID**
+   * **Client Secret**
+
+### ⚙️ 4. Environment Variables
+Create a file named `.env` in the `backend/` directory using `backend/.env.example` as a template:
 
 ```env
 PORT=8080
-FFMPEG_LOCATION=              # Optional: absolute path to FFmpeg binary if not in PATH
-TELEGRAM_API_ID=your_api_id   # Get from https://my.telegram.org
-TELEGRAM_API_HASH=your_hash
-TELEGRAM_BOT_TOKEN=your_token # Get from @BotFather
-TELEGRAM_CHANNEL_ID=-100...   # Private Telegram Channel ID where music is uploaded
-TELEGRAM_SESSION=             # String session generated using MTProto client
-```
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 
-For Firebase integration, download your Service Account JSON file from the Firebase Console and save it to `backend/firebase-key.json`.
+# Backblaze B2 Configuration (S3 API compatible)
+B2_ENDPOINT=s3.us-east-005.backblazeb2.com
+B2_KEY_ID=your_b2_key_id
+B2_APPLICATION_KEY=your_b2_application_key
+B2_BUCKET_NAME=your_bucket_name
+B2_REGION=us-east-005
+
+# Optional: Path to FFmpeg binary if it is not in your global system PATH
+# FFMPEG_LOCATION="C:\path\to\ffmpeg.exe"
+```
 
 ### 🚀 Running the Server Locally
 1. Navigate to the backend directory and install dependencies:
@@ -107,64 +132,68 @@ For Firebase integration, download your Service Account JSON file from the Fireb
    cd backend
    npm install
    ```
-2. Start the development server:
+2. Start the server:
    ```bash
    node server.js
    ```
-3. Use the CLI tool to manually import tracks:
+3. (Optional) Run the CLI script to manually download and add songs:
    ```bash
    node manual_add.js
    ```
 
-### 🚢 Deployment
-
-The backend application is currently deployed on **Render** (Free Tier). To prevent the Free tier container from automatically sleeping after 15 minutes of inactivity, an external keep-alive pinging monitor is configured. Alternatively, deploying to **Google Cloud Run** is also fully supported.
-
-#### Option A: Render Free Tier (Current Setup)
-1. Render deploys directly from your connected GitHub repository and builds automatically on every `git push` using the root [Dockerfile](file:///d:/music/Dockerfile).
-2. Configure the required environment variables in the Render Web Service dashboard (see [render_migration.md](file:///d:/music/render_migration.md) for details).
-3. **Keep-Alive (No Sleep) configuration**: Register a free monitor with [UptimeRobot](https://uptimerobot.com/) or [cron-job.org](https://cron-job.org/) to ping the server URL (`https://your-service.onrender.com/`) every 10–12 minutes. This keeps the container continuously active and prevents the 30–50 second cold start delay.
-4. For a full step-by-step walkthrough, see the [Render Migration Guide](file:///d:/music/render_migration.md).
-
-#### Option B: Google Cloud Run (Alternative Setup)
-The codebase is containerized and includes an automated deploy script. To deploy to Cloud Run:
-```bash
-./deploy.sh
-```
-
-
 ---
 
-## 🛠️ Getting Started: Flutter App
+## 🛠️ Getting Started: Flutter App Setup
 
 ### 📋 Prerequisites
-*   [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.0.0 or higher)
-*   An Android or iOS emulator / physical device
+* **Flutter SDK** (v3.0.0 or higher)
+* An Android/iOS emulator or physical test device
 
-### 🚀 Setup & Launch
-1. Open the app directory:
+### 🚀 Launching the App
+1. Navigate to the App directory:
    ```bash
    cd flutter_app
    ```
-2. Get dependencies:
+2. Install dependencies:
    ```bash
    flutter pub get
    ```
-3. Configure the backend API host. In [api_service.dart](file:///d:/music/flutter_app/lib/services/api_service.dart), update the `baseUrl` string to point to your hosted backend:
+3. Open [api_service.dart](file:///d:/music/flutter_app/lib/services/api_service.dart) and configure the `baseUrl` variable to point to your hosted backend API:
    ```dart
-   static String baseUrl = 'https://your-backend-url.onrender.com';
+   static String baseUrl = 'https://your-backend-url-on-render-or-cloudrun';
    ```
-4. Run the app:
+4. Build and run:
    ```bash
    flutter run
    ```
 
 ---
 
-## 🔒 Security Note
-Do not commit confidential files like `backend/.env` or `backend/firebase-key.json` to public repositories. When deploying to Render or Cloud Run, parse service account credentials dynamically by copying the JSON content into the `FIREBASE_KEY_JSON` environment variable (the backend configuration dynamically reads this if `firebase-key.json` is missing).
+## 🚢 Deployment
+
+### Option A: Render Free Tier
+Sonic Vault includes a `render.yaml` blueprint for deployment:
+1. Push your repository to your GitHub account.
+2. Log in to [Render](https://render.com/) and connect your GitHub repository.
+3. The platform will automatically detect `render.yaml` and configure the Web Service.
+4. **Environment Configuration**: Set the environment variables in Render's dashboard. For the Firebase Service Account key, copy the entire raw JSON text and paste it as the value for `FIREBASE_KEY_JSON` (the backend code automatically parses this variable if `firebase-key.json` is missing).
+5. **Keep-Alive**: To avoid the Free Tier cold start delay (30-50s) after inactivity, configure a free HTTP pinger (such as [cron-job.org](https://cron-job.org/) or [UptimeRobot](https://uptimerobot.com/)) to query your backend endpoint every 10–12 minutes.
+
+### Option B: Google Cloud Run
+A custom deployment script is included at the root of the project:
+1. Ensure the Google Cloud CLI (`gcloud`) is installed and authenticated.
+2. Execute the deployment script:
+   ```bash
+   ./deploy.sh
+   ```
 
 ---
 
-## 📄 License
-This project is released under the **ISC License**.
+## 🔒 Security Considerations (Homelab Threat Model)
+
+This application is designed specifically as a single-tenant personal vault. To avoid over-engineering, several enterprise-level security features are omitted by design, but can be configured if needed:
+
+* **No API Authentication Middleware**: Since this is a private server accessed only by your device, standard API token management is bypassed to simplify deployment. If you expose your instance publically, it is highly recommended to run it behind a reverse proxy (e.g., Caddy, Nginx) configured with Basic Authentication or Cloudflare Access.
+* **Wildcard CORS**: CORS is open (`*`) by default to make integration with multi-platform mobile clients simple.
+* **Subprocess Security**: The backend includes robust command-sanitization mechanisms (`--` separators) to prevent malicious YouTube/Spotify query inputs from causing remote code execution on the host machine.
+* **Service Account Security**: Ensure that the `firebase-key.json` and `.env` files are never committed to git history.
