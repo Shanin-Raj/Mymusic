@@ -1,6 +1,6 @@
 ## Why
 
-Over the course of development, the agent has executed a major high-fidelity UI redesign of the SonicVault Spotify-clone application, integrated proprietary Figma layouts, optimized typographic scaling with the Montserrat font (to emulate "Spotify Mix"), refined dark/light mode toggle palettes, and solved several layout regressions (such as the mini player bleeding and text cutting off in mix cards). 
+Over the course of development, the agent has executed a major high-fidelity UI redesign of the Mixtape Spotify-clone application, integrated proprietary Figma layouts, optimized typographic scaling with the Montserrat font (to emulate "Spotify Mix"), refined dark/light mode toggle palettes, and solved several layout regressions (such as the mini player bleeding and text cutting off in mix cards). 
 
 To ensure these changes are preserved as a permanent dated reference for the agent's long-term memory, we need to formally update the OpenSpec archive with a proposal, design specification, and delta specs detailing the implementation.
 

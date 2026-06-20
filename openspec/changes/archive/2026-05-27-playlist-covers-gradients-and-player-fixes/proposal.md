@@ -1,6 +1,6 @@
 ## Why
 
-The SonicVault application has introduced several high-fidelity layout and player enhancements to elevate user experience. Playlists previously suffered from missing cover images due to packaging directory isolation on Cloud Run (sibling `../images` directory was not packaged). In addition, different playlist pages shared a hardcoded static background gradient rather than custom-tailored aesthetics, the bottom player suffered from progress bar crashes when track durations were zero or loading, and the now-playing visualizer caused page flickering due to high-frequency layout repainting. 
+The Mixtape application has introduced several high-fidelity layout and player enhancements to elevate user experience. Playlists previously suffered from missing cover images due to packaging directory isolation on Cloud Run (sibling `../images` directory was not packaged). In addition, different playlist pages shared a hardcoded static background gradient rather than custom-tailored aesthetics, the bottom player suffered from progress bar crashes when track durations were zero or loading, and the now-playing visualizer caused page flickering due to high-frequency layout repainting. 
 
 To resolve these visual and stability issues, we have deployed robust folder fallbacks, dynamic HSL-based seeded playlist gradients, math protection for progress calculation, static layout boundaries for visual equalizer animations, and a premium Library refresh action. These updates must be formally recorded in the OpenSpec archive.
 

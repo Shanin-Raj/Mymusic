@@ -1,6 +1,6 @@
 ## Context
 
-SonicVault's user interface has undergone a comprehensive high-fidelity redesign, adapting custom layouts exported from Figma. To provide a modern, premium experience, a new typography system, revised layout spacing, and solid color palettes were implemented, preserving all background audio streaming and state providers. This document records the architectural and design decisions behind these visual upgrades to serve as the project's long-term dated memory.
+Mixtape's user interface has undergone a comprehensive high-fidelity redesign, adapting custom layouts exported from Figma. To provide a modern, premium experience, a new typography system, revised layout spacing, and solid color palettes were implemented, preserving all background audio streaming and state providers. This document records the architectural and design decisions behind these visual upgrades to serve as the project's long-term dated memory.
 
 ## Goals / Non-Goals
 
@@ -8,7 +8,7 @@ SonicVault's user interface has undergone a comprehensive high-fidelity redesign
 - Formally document the typography transition to Google Fonts' `Montserrat` to emulate the "Spotify Mix" look.
 - Detail the safe area layout adjustments, specifically the bottom navigation system bar padding and the increased height limits for carousels to prevent text clipping.
 - Chronicle the navigation overhaul of `FullScreenPlayer` from a bottom sheet to a standard Scaffoled page route.
-- Preserve the exact operational logic, providers, and state sync of SonicVault while altering the UI.
+- Preserve the exact operational logic, providers, and state sync of Mixtape while altering the UI.
 
 **Non-Goals:**
 - Introducing new functional features or database changes in this change record.

@@ -1,8 +1,8 @@
 ## 1. Branding & Identity Lockdown
 
-- [x] 1.1 Update `index.html` title tag to "Sonic Vault" and ensure the favicon/app-icon references the vinyl record logo.
-- [x] 1.2 Overwrite `manifest.json` application name to "Sonic Vault" and confirm all icon sizes point to the latest vinyl assets.
-- [x] 1.3 Sync `android/twa-manifest.json` with the name "Sonic Vault" and verify the `iconUrl` and `maskableIconUrl` are correct for production.
+- [x] 1.1 Update `index.html` title tag to "Mixtape" and ensure the favicon/app-icon references the vinyl record logo.
+- [x] 1.2 Overwrite `manifest.json` application name to "Mixtape" and confirm all icon sizes point to the latest vinyl assets.
+- [x] 1.3 Sync `android/twa-manifest.json` with the name "Mixtape" and verify the `iconUrl` and `maskableIconUrl` are correct for production.
 
 ## 2. Audio State Preservation (Frontend)
 

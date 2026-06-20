@@ -1,6 +1,6 @@
 ## Context
 
-The SonicVault web/mobile application has implemented deep custom Spotify aesthetics and offline caching, but suffered from operating-system command mismatches, background position stream deactivations, centered alignment equalizer visualizers, and a lack of user-facing song addition dialogues in the mobile application shell. This design outlines how we cleanly integrate these platform-aware fixes and modular additions.
+The Mixtape web/mobile application has implemented deep custom Spotify aesthetics and offline caching, but suffered from operating-system command mismatches, background position stream deactivations, centered alignment equalizer visualizers, and a lack of user-facing song addition dialogues in the mobile application shell. This design outlines how we cleanly integrate these platform-aware fixes and modular additions.
 
 ## Goals / Non-Goals
 

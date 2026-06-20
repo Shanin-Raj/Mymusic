@@ -13,7 +13,7 @@
 - [x] 3.1 Add `<uses-permission android:name="android.permission.INTERNET" />` to `AndroidManifest.xml`.
 - [x] 3.2 Add the mandatory `com.ryanheise.audioservice.AudioService` `<service>` declaration.
 - [x] 3.3 Add the mandatory `com.ryanheise.audioservice.MediaButtonReceiver` `<receiver>` declaration.
-- [x] 3.4 Ensure `android:label` in the manifest is set to "Sonic Vault Dev".
+- [x] 3.4 Ensure `android:label` in the manifest is set to "Mixtape Dev".
 
 ## 4. Verification
 

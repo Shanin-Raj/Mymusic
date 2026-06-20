@@ -7,7 +7,7 @@ The newly built Flutter APK is crashing immediately on launch on physical Androi
 - **Android Manifest Updates**: Add mandatory `<service>` and `<receiver>` entries required by the `audio_service` package.
 - **Permission Grants**: Explicitly add the `INTERNET` permission to the `AndroidManifest.xml` to allow the app to fetch songs and stream audio in release mode.
 - **RETHINK: Application ID Isolation**: Revert the `applicationId` to a development-only ID (e.g., `com.example.sonic_vault_flutter`) so the Flutter app can be installed alongside the existing TWA app for parallel testing.
-- **Metadata Update**: Fix the application name in the manifest to match "Sonic Vault" instead of the default scaffold name.
+- **Metadata Update**: Fix the application name in the manifest to match "Mixtape" instead of the default scaffold name.
 
 ## Capabilities
 

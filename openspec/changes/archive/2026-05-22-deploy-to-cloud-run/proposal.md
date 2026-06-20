@@ -1,6 +1,6 @@
 ## Why
 
-The application is currently running locally. To make the "Sonic Vault" accessible to the user on the go and ensure its persistent availability, it needs to be deployed to a scalable cloud platform. Google Cloud Run provides a serverless environment that is ideal for containerized Node.js applications, offering automatic scaling and high availability.
+The application is currently running locally. To make the "Mixtape" accessible to the user on the go and ensure its persistent availability, it needs to be deployed to a scalable cloud platform. Google Cloud Run provides a serverless environment that is ideal for containerized Node.js applications, offering automatic scaling and high availability.
 
 ## What Changes
 
@@ -12,7 +12,7 @@ The application is currently running locally. To make the "Sonic Vault" accessib
 ## Capabilities
 
 ### New Capabilities
-- `cloud-run-deployment`: Automated workflow for building and deploying the Sonic Vault container to Google Cloud Run.
+- `cloud-run-deployment`: Automated workflow for building and deploying the Mixtape container to Google Cloud Run.
 - `containerized-environment`: A fully defined Docker environment containing all necessary system dependencies (FFmpeg, Python) for music processing.
 
 ### Modified Capabilities

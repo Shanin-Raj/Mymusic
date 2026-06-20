@@ -10,7 +10,7 @@
 - Add `flutter_launcher_icons` to dev dependencies.
 - Configure `flutter_launcher_icons` inside `pubspec.yaml` to process `assets/mixtape_logo.jpeg` with a `#000000` (black) background for Android adaptive icons.
 - Rename visible `MaterialApp` title in `main.dart` and the application `android:label` in `AndroidManifest.xml` to **MixTape**.
-- Update queue and notification album tags in `player_provider.dart` from **Sonic Vault** to **MixTape**.
+- Update queue and notification album tags in `player_provider.dart` from **Mixtape** to **MixTape**.
 - Refactor `ApiService` to cache and return the exact same synchronous `Future` instances for `fetchSongs()` and `fetchPlaylists()` to prevent `FutureBuilder` from resetting its connectionState, achieving flicker-free list rebuilds.
 - Create [keep.xml](file:///d:/music/flutter_app/android/app/src/main/res/raw/keep.xml) to explicitly preserve `@drawable/ic_notification` during resource shrinking in release builds.
 - Refactor `audio_handler.dart` to trigger next-track pre-caching **instantly at play start** via the `currentIndexStream` change event, completely removing the old position-based 44-second listener.

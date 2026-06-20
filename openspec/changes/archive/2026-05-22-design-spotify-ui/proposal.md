@@ -1,6 +1,6 @@
 ## Why
 
-The current "Sonic Vault" UI, while functional, lacks the premium aesthetic and brand recognition of industry leaders like Spotify. By adopting Spotify's official design guidelines, we can provide users with a familiar, professional-grade interface that emphasizes high-quality metadata, content-focused layouts, and intuitive component behavior. This will enhance the overall user experience and align the app with modern streaming standards.
+The current "Mixtape" UI, while functional, lacks the premium aesthetic and brand recognition of industry leaders like Spotify. By adopting Spotify's official design guidelines, we can provide users with a familiar, professional-grade interface that emphasizes high-quality metadata, content-focused layouts, and intuitive component behavior. This will enhance the overall user experience and align the app with modern streaming standards.
 
 ## What Changes
 

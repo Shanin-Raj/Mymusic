@@ -1,6 +1,6 @@
 ## Context
 
-The Sonic Vault application needs a reliable cloud hosting solution. Google Cloud Run is chosen for its simplicity, scaling capabilities, and pay-per-use model. The backend requires system-level tools (FFmpeg, Python) which must be included in the container image.
+The Mixtape application needs a reliable cloud hosting solution. Google Cloud Run is chosen for its simplicity, scaling capabilities, and pay-per-use model. The backend requires system-level tools (FFmpeg, Python) which must be included in the container image.
 
 ## Goals / Non-Goals
 

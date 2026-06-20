@@ -1,6 +1,6 @@
 ## Why
 
-During local Windows development of the SonicVault Spotify-clone application, attempting to add songs through the API crashed with `exit code 1` due to the backend code hardcoding `python3`, which does not exist by default on Windows. Additionally, the bottom mini player progress bar was frozen because it was bound to `AudioService.position`, which is idle when notifications are deactivated. The equalizer visualizer animation expanded from the center, causing flickering/vertical jitter, and failed to scale dynamically, overlapping with the artwork in an unappealing way. 
+During local Windows development of the Mixtape Spotify-clone application, attempting to add songs through the API crashed with `exit code 1` due to the backend code hardcoding `python3`, which does not exist by default on Windows. Additionally, the bottom mini player progress bar was frozen because it was bound to `AudioService.position`, which is idle when notifications are deactivated. The equalizer visualizer animation expanded from the center, causing flickering/vertical jitter, and failed to scale dynamically, overlapping with the artwork in an unappealing way. 
 
 To solve these visual and operational issues, we need a platform-aware backend python command resolver, real-time position stream routing, a bottom-anchored hardware-style visualizer, and a beautifully modular, completely self-contained UI-based universal adder flow to safely integrate link-based and manual song sync without affecting existing features.
 

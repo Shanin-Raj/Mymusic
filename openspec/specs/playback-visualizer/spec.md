@@ -1,5 +1,5 @@
 ## Purpose
-This specification defines the requirements for the playback visualizer animations in the SonicVault application to ensure seamless, real-time playback state synchronization.
+This specification defines the requirements for the playback visualizer animations in the Mixtape application to ensure seamless, real-time playback state synchronization.
 ## Requirements
 ### Requirement: Playback visualizer animation
 The application MUST display a dynamic EQ animation (visualizer) next to or on top of the artwork of the currently playing track. To prevent layout thrashing and high-frequency repainting that causes visible screen/image flickering on high-refresh-rate devices, the visualizer SHALL isolate its height animations within a static, fixed-height boundary container using independent alignment scaling.

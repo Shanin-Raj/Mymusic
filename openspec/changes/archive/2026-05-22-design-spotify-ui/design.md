@@ -1,6 +1,6 @@
 ## Context
 
-The "Sonic Vault" application currently utilizes a "Sonic Clarity" design system characterized by Montserrat/Hanken Grotesk typography and a Light/Dark monochromatic aesthetic with red accents. To achieve a more professional and recognizable identity, we are transitioning the entire frontend to Spotify's official design language. This involves shifting from light mode/red accents to a signature high-contrast dark theme with "Spotify Green" as the primary action color.
+The "Mixtape" application currently utilizes a "Sonic Clarity" design system characterized by Montserrat/Hanken Grotesk typography and a Light/Dark monochromatic aesthetic with red accents. To achieve a more professional and recognizable identity, we are transitioning the entire frontend to Spotify's official design language. This involves shifting from light mode/red accents to a signature high-contrast dark theme with "Spotify Green" as the primary action color.
 
 ## Goals / Non-Goals
 

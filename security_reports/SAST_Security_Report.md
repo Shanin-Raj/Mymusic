@@ -1,14 +1,14 @@
 # Static Application Security Testing (SAST) & Architectural Review
-**Target Project:** Sonic Vault Node.js/Express Backend  
+**Target Project:** Mixtape Node.js/Express Backend  
 **Date:** June 18, 2026  
 **Status:** DRAFT (Ready for Audit & Integration)
 
 ---
 
 ## 1. Executive Summary
-This report details the findings of a Static Application Security Testing (SAST) and architectural review conducted on the **Sonic Vault** backend codebase. 
+This report details the findings of a Static Application Security Testing (SAST) and architectural review conducted on the **Mixtape** backend codebase. 
 
-Sonic Vault is a Node.js/Express-based audio processing gateway interfacing with **Backblaze B2** (storage) and **Cloud Firestore** (database). It handles metadata extraction and audio stream downloading/transcoding via `yt-dlp` and `ffmpeg`.
+Mixtape is a Node.js/Express-based audio processing gateway interfacing with **Backblaze B2** (storage) and **Cloud Firestore** (database). It handles metadata extraction and audio stream downloading/transcoding via `yt-dlp` and `ffmpeg`.
 
 Due to AI-assisted generation ("vibe coding"), the current codebase prioritizes functionality and speed over security constraints. This has left the application exposed to severe security flaws including **Command/Argument Injection (Remote Code Execution)**, **Broken API Access Control**, **Resource Exhaustion (Denial of Service)**, and **Insecure Direct Object Reference (IDOR)**.
 
@@ -16,7 +16,7 @@ Due to AI-assisted generation ("vibe coding"), the current codebase prioritizes 
 
 ## 2. Architectural Threat Model Summary
 
-Sonic Vault operates as an API Gateway connecting mobile client applications with external media services and cloud infrastructure.
+Mixtape operates as an API Gateway connecting mobile client applications with external media services and cloud infrastructure.
 
 ### Data Flow & Trust Boundaries
 ```

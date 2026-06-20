@@ -1,11 +1,11 @@
 ## Context
 
-The "Sonic Vault" application has reached a stable visual baseline with the "Bright Editorial" redesign, but several user-experience "glitches" have been identified in the production environment. These range from branding inconsistencies (old name/logo) to critical playback interruptions. Most notably, UI interactions that should be purely cosmetic (like toggling Dark Mode or "Liking" a song) are triggering full audio reloads, which is unacceptable for a premium streaming experience.
+The "Mixtape" application has reached a stable visual baseline with the "Bright Editorial" redesign, but several user-experience "glitches" have been identified in the production environment. These range from branding inconsistencies (old name/logo) to critical playback interruptions. Most notably, UI interactions that should be purely cosmetic (like toggling Dark Mode or "Liking" a song) are triggering full audio reloads, which is unacceptable for a premium streaming experience.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- **Branding Audit**: Finalize "Sonic Vault" as the name and the vinyl record as the logo across Web and Android.
+- **Branding Audit**: Finalize "Mixtape" as the name and the vinyl record as the logo across Web and Android.
 - **Uninterrupted Audio**: Refactor UI state updates to be "audio-agnostic," ensuring that changing theme or track metadata does not reset the playback buffer.
 - **Visibility Pass**: Hardened CSS for Dark Mode to ensure all player controls (especially the Like/Favorite button) are clearly visible.
 - **Lockscreen Stability**: Ensure the "Pre-cache & Play Next" sequence fires reliably on mobile devices even when the screen is locked.
@@ -21,7 +21,7 @@ The "Sonic Vault" application has reached a stable visual baseline with the "Bri
   - **Rationale**: Currently, `playSong()` is called during "Like" and "Theme" changes, which re-sets `audio.src`. By isolating the UI rendering, we can update the heart/plus icon state or theme colors without interrupting the stream.
 
 - **Branding Standardization**:
-  - **Decision**: Overwrite all instances of "Limitless" or placeholder titles with "Sonic Vault." Force the Android TWA manifest to use the latest vinyl logo PNGs.
+  - **Decision**: Overwrite all instances of "Limitless" or placeholder titles with "Mixtape." Force the Android TWA manifest to use the latest vinyl logo PNGs.
 
 - **Dark Mode Contrast**:
   - **Decision**: Explicitly set the `color` of `.player-extras` buttons to `var(--primary)` or `var(--on-surface)` in the `body.dark-mode` block.

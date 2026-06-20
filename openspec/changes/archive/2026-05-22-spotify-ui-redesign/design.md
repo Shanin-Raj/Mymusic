@@ -1,6 +1,6 @@
 ## Context
 
-The Sonic Vault web application currently uses a custom editorial styling that looks nice but deviates significantly from expected standard music player UX patterns (e.g., Spotify). To improve usability and familiarity, we're transitioning the entire frontend — layout, color palette, navigation, and player controls — to a Spotify-like dark theme design. The backend API (`server.js` and `/api/*` endpoints) will remain entirely unchanged.
+The Mixtape web application currently uses a custom editorial styling that looks nice but deviates significantly from expected standard music player UX patterns (e.g., Spotify). To improve usability and familiarity, we're transitioning the entire frontend — layout, color palette, navigation, and player controls — to a Spotify-like dark theme design. The backend API (`server.js` and `/api/*` endpoints) will remain entirely unchanged.
 
 ## Goals / Non-Goals
 

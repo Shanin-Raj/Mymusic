@@ -1,5 +1,5 @@
 # Cloud Security Audit — Database & Storage Integration
-**Target:** Sonic Vault Backend (Node.js / Express)  
+**Target:** Mixtape Backend (Node.js / Express)  
 **Scope:** Backblaze B2 (S3-Compatible Storage) · Cloud Firestore · Credential Hygiene  
 **Date:** June 18, 2026  
 **Status:** DRAFT — Pending Remediation
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-The Sonic Vault backend delegates all persistent data to two cloud services:
+The Mixtape Backend delegates all persistent data to two cloud services:
 
 | Service | Role | SDK | Credential Type |
 |---|---|---|---|

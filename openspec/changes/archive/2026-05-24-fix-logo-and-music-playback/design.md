@@ -1,6 +1,6 @@
 ## Context
 
-The app is a PWA (Sonic Vault) deployed on Cloud Run and wrapped as an Android TWA. Two issues exist:
+The app is a PWA (Mixtape) deployed on Cloud Run and wrapped as an Android TWA. Two issues exist:
 
 1. **Wrong logo**: The icon files (`icon-192.png`, `icon-512.png`) contain a lightning bolt placeholder. The actual brand logo (`musiclogo.jpeg` — vinyl record with waveform signature) needs to replace them. These icons are used by the PWA manifest for the home screen launcher, the splash screen on load, and the TWA/Android app icon.
 

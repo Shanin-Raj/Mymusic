@@ -1,5 +1,5 @@
 # Consolidated Security Action Plan — Homelab Threat Model
-**Project:** Mixtape / Sonic Vault  
+**Project:** Mixtape / Mixtape  
 **Threat Model:** Self-hosted, single-tenant, open-source template  
 **Date:** June 18, 2026
 

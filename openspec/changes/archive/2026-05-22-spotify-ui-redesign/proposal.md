@@ -1,6 +1,6 @@
 ## Why
 
-The current Sonic Vault app uses a custom editorial/bright design that feels disconnected from modern music app conventions. Users expect a Spotify-like dark UI with familiar patterns — dark backgrounds (#121212), green accent colors (#1DB954), a persistent mini-player bar, 5-tab bottom navigation (Home, Search, Your Library, Premium, Create), album-art-rich cards, and a full-screen now-playing view with large artwork and fluid controls. Redesigning to match the Spotify visual language will make the app feel instantly familiar, premium, and polished.
+The current Mixtape app uses a custom editorial/bright design that feels disconnected from modern music app conventions. Users expect a Spotify-like dark UI with familiar patterns — dark backgrounds (#121212), green accent colors (#1DB954), a persistent mini-player bar, 5-tab bottom navigation (Home, Search, Your Library, Premium, Create), album-art-rich cards, and a full-screen now-playing view with large artwork and fluid controls. Redesigning to match the Spotify visual language will make the app feel instantly familiar, premium, and polished.
 
 ## What Changes
 

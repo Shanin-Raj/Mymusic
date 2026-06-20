@@ -29,7 +29,7 @@ The Flutter side had no local audio caching — every play was a fresh stream fr
 
 5. **Inactivity timer (Flutter)**: `AudioCacheService.touch()` is called on every playback action (play, pause, skip, seek, song change). If 15 minutes pass without a touch, the cache is cleared. This prevents unbounded storage growth.
 
-6. **Lifecycle cleanup (Flutter)**: `SonicVaultApp` (now `StatefulWidget`) observes `AppLifecycleState.detached` to clear cache when the app is swiped away.
+6. **Lifecycle cleanup (Flutter)**: `MixtapeApp` (now `StatefulWidget`) observes `AppLifecycleState.detached` to clear cache when the app is swiped away.
 
 ## Risks / Trade-offs
 

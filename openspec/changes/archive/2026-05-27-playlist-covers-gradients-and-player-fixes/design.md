@@ -1,6 +1,6 @@
 ## Context
 
-To enhance application stability and aesthetic fidelity, we have deployed critical UI, player, and asset pipeline refinements to the SonicVault Spotify-clone application. This document details the technical and design choices behind these updates to serve as a long-term reference.
+To enhance application stability and aesthetic fidelity, we have deployed critical UI, player, and asset pipeline refinements to the Mixtape Spotify-clone application. This document details the technical and design choices behind these updates to serve as a long-term reference.
 
 ## Goals / Non-Goals
 

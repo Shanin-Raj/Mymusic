@@ -1,6 +1,6 @@
 ## Why
 
-The current build of "Sonic Vault" contains lingering branding inconsistencies where the old logo and name persist in the Android APK and Web PWA. Additionally, critical functional bugs are impacting the user experience: music incorrectly restarts when toggling Dark Mode or liking a track, and automatic track advancement consistently stalls on the lockscreen. This change is essential to finalize the professional identity of the app and ensure reliable, uninterrupted playback in all device states.
+The current build of "Mixtape" contains lingering branding inconsistencies where the old logo and name persist in the Android APK and Web PWA. Additionally, critical functional bugs are impacting the user experience: music incorrectly restarts when toggling Dark Mode or liking a track, and automatic track advancement consistently stalls on the lockscreen. This change is essential to finalize the professional identity of the app and ensure reliable, uninterrupted playback in all device states.
 
 ## What Changes
 
@@ -13,7 +13,7 @@ The current build of "Sonic Vault" contains lingering branding inconsistencies w
 ## Capabilities
 
 ### New Capabilities
-- `brand-asset-sync`: Synchronization of "Sonic Vault" naming and vinyl logo across Web and Android packages.
+- `brand-asset-sync`: Synchronization of "Mixtape" naming and vinyl logo across Web and Android packages.
 - `uninterrupted-ui-state`: Preservation of audio playback position and state during theme transitions and metadata updates.
 
 ### Modified Capabilities
