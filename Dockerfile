@@ -30,13 +30,13 @@ RUN mkdir -p /app/backend/cache /app/backend/downloads /app/images && \
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=7860
+ENV PORT=8080
 
 # Change working directory to backend for execution
 WORKDIR /app/backend
 
 # Expose port
-EXPOSE 7860
+EXPOSE 8080
 
 # Start the application
 CMD ["node", "server.js"]
