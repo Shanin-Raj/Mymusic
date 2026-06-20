@@ -19,10 +19,6 @@
     "firebase-admin": "^13.9.0",
     "node-fetch": "^2.7.0",
     "socket.io": "^4.8.3",
-    "spotify-url-info": "^3.3.0",
-    "spotify-web-api-node": "^5.0.2"
-  },
-  "devDependencies": {
-    "sharp": "^0.34.5"
+    "spotify-url-info": "^3.3.0"
   }
 }

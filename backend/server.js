@@ -14,7 +14,6 @@ const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Resolve the images directory robustly (look for sibling folder first, then internal backend folder)
 let IMAGES_DIR = path.join(__dirname, '../images');
@@ -84,10 +83,6 @@ function getAbsoluteImageUrl(req, relativePath) {
     return `${protocol}://${host}${relativePath}`;
 }
 
-// Android TWA Trust Handshake
-app.get('/.well-known/assetlinks.json', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
-});
 
 // Authentication Middleware
 async function authenticateToken(req, res, next) {
@@ -263,10 +258,7 @@ app.get('/api/stats', async (req, res) => {
     } catch (e) { res.status(500).send(); }
 });
 
-app.get('/api/precache/:id', async (req, res) => {
-    // Pre-caching is obsolete under B2 architecture; return success immediately
-    res.json({ status: 'ok', message: 'Pre-caching not required' });
-});
+
 
 app.get('/api/playlists', async (req, res) => {
     try {
@@ -451,10 +443,6 @@ app.get('/api/time', (req, res) => {
 
 
 
-// Final catch-all middleware for SPA
-app.use((req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 async function start() { 
     listenToLibrary();

@@ -79,15 +79,6 @@ class ApiService {
   }
 
 
-  static Future<void> preCache(String songId) async {
-    try {
-      final headers = await getHeaders();
-      await http.get(Uri.parse('$baseUrl/api/precache/$songId'), headers: headers);
-    } catch (e) {
-      debugPrint('Precache failed: $e');
-    }
-  }
-
   static Future<Map<String, dynamic>> addSong(String? url, String? name, String? artist) async {
     final headers = await getHeaders(isJson: true);
     final response = await http.post(

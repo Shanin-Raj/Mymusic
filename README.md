@@ -25,7 +25,6 @@ pinned: false
 * **Private B2 Cloud Storage**: Uploads transcoded `.m4a` files directly to a private Backblaze B2 bucket (via the AWS S3 SDK), ensuring persistent and secure storage.
 * **Firestore Catalog Sync**: Syncs track catalogs, playlists, and listening room states in Google Cloud Firestore.
 * **Secure Redirect Streaming**: Generates short-lived, pre-signed download URLs (1-hour expiration) for audio tracks, redirecting clients securely for direct playback.
-* **TWA Trusted Web Handshake**: Serves Android Trusted Web Activity (TWA) asset link handshakes (`/.well-known/assetlinks.json`).
 
 ### 📱 The Mobile Client (Mixtape)
 * **Premium Visual Design**: Built using a tailored dark theme (`#121414`), glassmorphic panels, custom Montserrat/Hanken Grotesk typography, and Spotify-style accents.
@@ -39,7 +38,7 @@ pinned: false
 
 ```mermaid
 graph TD
-    A[Spotify/YouTube Link] -->|Submit Request| B[Sonic Vault Backend /api/add-song]
+    A[Spotify/YouTube Link] -->|Submit Request| B[Sonic Vault API /api/add-song]
     B -->|Resolve Metadata| C[Spotify Metadata API]
     B -->|Transcode Audio| D[yt-dlp / FFmpeg]
     D -->|Audio file .m4a| E[Private Backblaze B2 Bucket]
@@ -51,6 +50,9 @@ graph TD
     B -->|Request 1-Hour Presigned URL| E
     B -->|302 Redirect to Presigned CDN URL| G
     G -->|Stream Direct Audio| E
+    
+    %% Hosting 
+    H((Hugging Face Spaces Docker Container)) -.->|Hosts| B
 ```
 
 ---
@@ -58,7 +60,6 @@ graph TD
 ## 📂 Repository Structure
 
 ```text
-├── android/                   # Generated Android configuration & TWA manifests
 ├── backend/                   # Node.js + Express API & media processing scripts
 │   ├── adder.js               # Resolves Spotify links, spawns yt-dlp, and coordinates uploads
 │   ├── downloader.js          # Core yt-dlp downloader wrapper
@@ -170,7 +171,7 @@ B2_REGION=us-east-005
    ```
 3. Open [api_service.dart](file:///d:/music/flutter_app/lib/services/api_service.dart) and configure the `baseUrl` variable to point to your hosted backend API:
    ```dart
-   static String baseUrl = 'https://your-backend-url-on-render-or-cloudrun';
+   static String baseUrl = 'https://shanin-05-mixtape.hf.space';
    ```
 4. Build and run:
    ```bash
@@ -181,13 +182,17 @@ B2_REGION=us-east-005
 
 ## 🚢 Deployment
 
-### Option A: Render Free Tier
-Sonic Vault includes a `render.yaml` blueprint for deployment:
-1. Push your repository to your GitHub account.
-2. Log in to [Render](https://render.com/) and connect your GitHub repository.
-3. The platform will automatically detect `render.yaml` and configure the Web Service.
-4. **Environment Configuration**: Set the environment variables in Render's dashboard. For the Firebase Service Account key, copy the entire raw JSON text and paste it as the value for `FIREBASE_KEY_JSON` (the backend code automatically parses this variable if `firebase-key.json` is missing).
-5. **Keep-Alive**: To avoid the Free Tier cold start delay (30-50s) after inactivity, configure a free HTTP pinger (such as [cron-job.org](https://cron-job.org/) or [UptimeRobot](https://uptimerobot.com/)) to query your backend endpoint every 10–12 minutes.
+### Option A: Hugging Face Spaces (Docker Container)
+Sonic Vault uses a `Dockerfile` for easy deployment on Hugging Face Spaces:
+1. Create a new Space on [Hugging Face](https://huggingface.co/spaces) and select **Docker** as the SDK.
+2. Push your repository to the space.
+3. **Environment Configuration**: Go to the Space **Settings** -> **Variables and secrets**. 
+   - Add all standard variables (`B2_ENDPOINT`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`) as **Secrets**.
+   - Copy the entire raw JSON text of `firebase-key.json` and paste it as the value for the `FIREBASE_KEY_JSON` secret.
+4. **Benefits**: 
+   - Generous free-tier bandwidth (effectively resolving the 5GB limitations seen on other PaaS like Zeabur/Supabase).
+   - Solid container specs (e.g., 2 vCPU, 16GB RAM for the free tier).
+   - Fast spin-up times for Docker containers, avoiding long cold-starts typical of free tiers.
 
 ### Option B: Google Cloud Run
 A custom deployment script is included at the root of the project:

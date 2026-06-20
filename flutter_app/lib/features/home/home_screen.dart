@@ -77,10 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               onPressed: themeProvider.toggleTheme,
                             ),
                             IconButton(
-                              icon: Icon(Icons.person_outline, color: titleColor),
-                              onPressed: () {},
-                            ),
-                            IconButton(
                               icon: Icon(Icons.settings_outlined, color: titleColor),
                               onPressed: () {
                                 Navigator.push(
