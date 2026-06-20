@@ -90,24 +90,29 @@ We use Hugging Face Spaces to host the Node.js backend using Docker. This provid
 
 ## 6. How to Add Songs Manually in Terminal
 
-If you want to manually add songs to your B2 storage and Firestore database from your local machine terminal without using the Flutter app:
+If you want to manually add songs to your Backblaze B2 storage and Firestore database from your local machine terminal without using the Flutter app:
 
-1. Ensure you are in the `backend/` directory and have dependencies installed:
+1. **Install Dependencies:** Run `npm install` in the root directory of the project (where `package.json` is located):
    ```bash
-   cd backend
    npm install
    ```
-2. Make sure you have your `.env` file populated locally and your `firebase-key.json` present.
-3. You can execute `adder.js` directly from the Node REPL. Run `node` in your terminal, then execute:
+2. **Setup Local Configuration:**
+   * Make sure your `backend/.env` file is populated with your Backblaze B2 and Spotify credentials.
+   * Make sure `backend/firebase-key.json` is present.
+3. **Run the Song Adder CLI:** Run the `manual_add.js` script inside the `backend/` folder:
+   * **Option A: Interactive Mode**
+     Simply run the script with no arguments:
+     ```bash
+     node backend/manual_add.js
+     ```
+     This will prompt you with a menu where you can choose to:
+     * Paste a Spotify track/playlist or YouTube link.
+     * Manually enter a Song Name and Artist Name.
+   * **Option B: Quick Direct Add**
+     Provide a Spotify or YouTube link directly as a command-line argument:
+     ```bash
+     node backend/manual_add.js "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT"
+     ```
 
-   ```javascript
-   const { addSong } = require('./adder.js');
+The script will download the audio using `yt-dlp`, transcode it to `.m4a` with `ffmpeg`, upload it directly to your Backblaze B2 bucket, and sync the song metadata to your Firestore database.
 
-   // Example 1: Add via Spotify Link
-   addSong({ url: 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT' }).then(console.log).catch(console.error);
-
-   // Example 2: Add via YouTube Link
-   addSong({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }).then(console.log).catch(console.error);
-   ```
-
-The script will automatically download the audio via `yt-dlp`, transcode it to `.m4a` using `ffmpeg`, upload it directly to your Backblaze B2 bucket, and sync the metadata into your Firestore database.
