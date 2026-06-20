@@ -2,7 +2,7 @@
 
 # Configuration
 PROJECT_ID=$(gcloud config get-value project)
-SERVICE_NAME="sonic-vault"
+SERVICE_NAME="mixtape-backend"
 REGION="us-central1"
 
 echo "🚀 Deploying $SERVICE_NAME to Google Cloud Run in $REGION..."
