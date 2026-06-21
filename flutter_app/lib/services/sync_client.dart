@@ -23,16 +23,19 @@ class SyncClient {
   bool get isConnected => _isConnected;
 
   Future<void> connect(String baseUrl) async {
+    if (_isConnected) return;
+
     final user = FirebaseAuth.instance.currentUser;
     final token = user != null ? await user.getIdToken() : null;
     
     if (token == null) {
       debugPrint('SyncClient: Cannot connect without auth token');
-      return;
+      throw Exception('Not authenticated');
     }
 
+    final connectCompleter = Completer<void>();
+
     _socket = IO.io(baseUrl, IO.OptionBuilder()
-      .setTransports(['websocket'])
       .disableAutoConnect()
       .setAuth({'token': token})
       .build());
@@ -41,11 +44,21 @@ class SyncClient {
       debugPrint('SyncClient: Connected to server');
       _isConnected = true;
       _performClockSync();
+      if (!connectCompleter.isCompleted) {
+        connectCompleter.complete();
+      }
     });
 
     _socket!.onDisconnect((_) {
       debugPrint('SyncClient: Disconnected from server');
       _isConnected = false;
+    });
+
+    _socket!.onConnectError((data) {
+      debugPrint('SyncClient: Connection error: $data');
+      if (!connectCompleter.isCompleted) {
+        connectCompleter.completeError(Exception('Connection failed'));
+      }
     });
 
     _socket!.on('sync_execute', (data) {
@@ -71,6 +84,14 @@ class SyncClient {
     });
 
     _socket!.connect();
+
+    // Wait for connection with timeout
+    return connectCompleter.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        throw Exception('Connection timeout');
+      },
+    );
   }
 
   void _performClockSync() async {
@@ -103,8 +124,16 @@ class SyncClient {
   }
 
   Future<void> createRoom() async {
+    if (!_isConnected) return Future.error('Not connected to server');
     final completer = Completer<void>();
+    
+    // Add timeout to prevent hanging
+    Timer(const Duration(seconds: 5), () {
+      if (!completer.isCompleted) completer.completeError('Connection timeout');
+    });
+
     _socket!.emitWithAck('create_room', null, ack: (data) {
+      if (completer.isCompleted) return;
       if (data['success']) {
         _currentRoomId = data['roomId'];
         _roomState = data['state'];
@@ -118,8 +147,16 @@ class SyncClient {
   }
 
   Future<void> joinRoom(String roomId) async {
+    if (!_isConnected) return Future.error('Not connected to server');
     final completer = Completer<void>();
+    
+    // Add timeout to prevent hanging
+    Timer(const Duration(seconds: 5), () {
+      if (!completer.isCompleted) completer.completeError('Connection timeout');
+    });
+
     _socket!.emitWithAck('join_room', roomId, ack: (data) {
+      if (completer.isCompleted) return;
       if (data['success']) {
         _currentRoomId = roomId;
         _roomState = data['state'];

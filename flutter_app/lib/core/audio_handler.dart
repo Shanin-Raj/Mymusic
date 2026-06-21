@@ -35,6 +35,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   // Synchronization lock for queue/playlist operations
   Future<void> _playlistLock = Future.value();
 
+  // Version counter to cancel stale updateQueueAndPlay requests
+  int _playRequestVersion = 0;
+
   Future<T> _synchronized<T>(Future<T> Function() action) {
     final completer = Completer<T>();
     _playlistLock = _playlistLock.then((_) async {
@@ -325,7 +328,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         final sources = await _buildSources(mediaItems);
 
         await _playlist.addAll(sources);
-        queue.add(queue.value..addAll(mediaItems));
+        final currentQueue = List<MediaItem>.from(queue.value);
+        currentQueue.addAll(mediaItems);
+        queue.add(currentQueue);
 
         if (_player.audioSource == null) {
           await _player.setAudioSource(_playlist);
@@ -375,9 +380,18 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
   }
 
-  Future<void> updateQueueAndPlay(List<MediaItem> newQueue, int startIndex) {
+  Future<void> updateQueueAndPlay(List<MediaItem> newQueue, int startIndex) async {
+    final myVersion = ++_playRequestVersion;
+
+    final sources = await _buildSources(newQueue);
+
     return _synchronized(() async {
       try {
+        if (_playRequestVersion != myVersion) {
+          debugPrint('Skipping stale updateQueueAndPlay (version $myVersion, current $_playRequestVersion)');
+          return;
+        }
+
         // Check if the queue is identical
         bool identical = queue.value.length == newQueue.length;
         if (identical) {
@@ -399,7 +413,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         queue.add(newQueue);
 
         await _playlist.clear();
-        final sources = await _buildSources(newQueue);
         await _playlist.addAll(sources);
 
         // Atomically load playlist starting at target song index
@@ -409,7 +422,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           initialPosition: Duration.zero,
         );
 
-        await play();
+        // Don't await play() - _player.play() returns a Future that completes
+        // when playback STOPS, not when it starts. Awaiting it would hold the
+        // _synchronized lock for the entire song duration, blocking all
+        // subsequent song changes.
+        play();
       } catch (e) {
         debugPrint('Error in updateQueueAndPlay(): $e');
       }
@@ -459,10 +476,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _removeQueueItemAt(int index) async {
     if (index < 0 || index >= queue.value.length) return;
-    await _playlist.removeAt(index);
+    
     final currentQueue = List<MediaItem>.from(queue.value);
     currentQueue.removeAt(index);
     queue.add(currentQueue);
+    
+    await _playlist.removeAt(index);
     _updatePlaybackState();
   }
 

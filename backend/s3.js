@@ -9,7 +9,11 @@ const s3Client = new S3Client({
     credentials: {
         accessKeyId: process.env.B2_KEY_ID,
         secretAccessKey: process.env.B2_APPLICATION_KEY
-    }
+    },
+    // Backblaze B2 doesn't support AWS checksums; the SDK's default
+    // x-amz-checksum-mode=ENABLED parameter causes B2 to return 403.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 /**
@@ -42,6 +46,31 @@ async function getPresignedUrl(key, expiresInSeconds = 3600) {
 }
 
 /**
+ * Gets the object stream directly from B2 (server-side, no presigned URL needed)
+ * @param {string} key
+ * @param {string} range
+ * @returns {Promise<{stream: ReadableStream, contentType: string, contentLength: number, contentRange: string, acceptRanges: string}>}
+ */
+async function getObjectStream(key, range) {
+    const params = {
+        Bucket: process.env.B2_BUCKET_NAME,
+        Key: key
+    };
+    if (range) {
+        params.Range = range;
+    }
+    const command = new GetObjectCommand(params);
+    const response = await s3Client.send(command);
+    return {
+        stream: response.Body,
+        contentType: response.ContentType || 'audio/mp4',
+        contentLength: response.ContentLength,
+        contentRange: response.ContentRange,
+        acceptRanges: response.AcceptRanges,
+    };
+}
+
+/**
  * Deletes an object from the B2 bucket
  * @param {string} key 
  */
@@ -54,4 +83,4 @@ async function deleteFromB2(key) {
     return await s3Client.send(command);
 }
 
-module.exports = { uploadToB2, getPresignedUrl, deleteFromB2, s3Client };
+module.exports = { uploadToB2, getPresignedUrl, getObjectStream, deleteFromB2, s3Client };

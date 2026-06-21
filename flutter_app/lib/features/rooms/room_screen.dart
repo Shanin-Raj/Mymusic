@@ -12,12 +12,37 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   final _joinController = TextEditingController();
+  bool _isConnecting = false;
+  String? _connectionError;
   
   @override
   void initState() {
     super.initState();
-    if (!SyncClient.instance.isConnected) {
-      SyncClient.instance.connect(ApiService.baseUrl);
+    _ensureConnected();
+  }
+
+  Future<void> _ensureConnected() async {
+    if (SyncClient.instance.isConnected) return;
+    
+    setState(() {
+      _isConnecting = true;
+      _connectionError = null;
+    });
+
+    try {
+      await SyncClient.instance.connect(ApiService.baseUrl);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _connectionError = e.toString();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConnecting = false;
+        });
+      }
     }
   }
 
@@ -47,6 +72,42 @@ class _RoomScreenState extends State<RoomScreen> {
   }
 
   Widget _buildJoinCreate() {
+    if (_isConnecting) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Connecting to server...'),
+          ],
+        ),
+      );
+    }
+
+    if (_connectionError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Connection failed', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text(_connectionError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _ensureConnected,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -55,6 +116,12 @@ class _RoomScreenState extends State<RoomScreen> {
           children: [
             ElevatedButton(
               onPressed: () async {
+                if (!SyncClient.instance.isConnected) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Not connected to server')),
+                  );
+                  return;
+                }
                 try {
                   await SyncClient.instance.createRoom();
                 } catch (e) {
@@ -79,6 +146,12 @@ class _RoomScreenState extends State<RoomScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
+                if (!SyncClient.instance.isConnected) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Not connected to server')),
+                  );
+                  return;
+                }
                 if (_joinController.text.isNotEmpty) {
                   try {
                     await SyncClient.instance.joinRoom(_joinController.text.trim());
