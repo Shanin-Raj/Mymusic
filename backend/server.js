@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { db, admin } = require('./firebase');
 const { addSong } = require('./adder');
-const { getPresignedUrl, deleteFromB2 } = require('./s3');
+const { getPresignedUrl, getObjectStream, deleteFromB2 } = require('./s3');
 const { initSyncEngine } = require('./sync_engine');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -14,6 +14,17 @@ const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(express.json());
+
+// Friendly root route for Hugging Face Space visitors
+app.get('/', (req, res) => {
+    res.send(`
+        <div style="font-family: system-ui, sans-serif; text-align: center; margin-top: 50px;">
+            <h1>🎵 Mixtape Backend</h1>
+            <p>The API and Sync Engine are running perfectly.</p>
+            <p style="color: gray;">(This server is meant to be accessed via the Mixtape Flutter App)</p>
+        </div>
+    `);
+});
 
 // Resolve the images directory robustly (look for sibling folder first, then internal backend folder)
 let IMAGES_DIR = path.join(__dirname, '../images');
@@ -88,8 +99,8 @@ function getAbsoluteImageUrl(req, relativePath) {
 async function authenticateToken(req, res, next) {
     if (req.method === 'OPTIONS') return next();
 
-    // If it's a GET request, bypass token requirement but parse it if available
-    if (req.method === 'GET') {
+    // If it's a GET or HEAD request, bypass token requirement but parse it if available
+    if (req.method === 'GET' || req.method === 'HEAD') {
         const authHeader = req.headers['authorization'];
         const token = authHeader && authHeader.split(' ')[1];
         if (token) {
@@ -97,7 +108,7 @@ async function authenticateToken(req, res, next) {
                 const decodedToken = await admin.auth().verifyIdToken(token);
                 req.user = decodedToken;
             } catch (error) {
-                console.error('Firebase Auth Optional Error (GET):', error.message);
+                console.error('Firebase Auth Optional Error (GET/HEAD):', error.message);
             }
         }
         return next();
@@ -242,8 +253,21 @@ app.get('/api/stream/:id', async (req, res) => {
         if (!song) return res.status(404).json({ error: true, message: 'Not found' });
 
         const key = song.fileKey || `${song.id}.m4a`;
-        const presignedUrl = await getPresignedUrl(key, 3600);
-        res.redirect(302, presignedUrl);
+        const range = req.headers.range;
+        const { stream, contentType, contentLength, contentRange, acceptRanges } = await getObjectStream(key, range);
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Accept-Ranges', acceptRanges || 'bytes');
+        if (contentLength) {
+            res.setHeader('Content-Length', contentLength);
+        }
+        if (contentRange) {
+            res.setHeader('Content-Range', contentRange);
+            res.status(206);
+        } else {
+            res.status(200);
+        }
+        stream.pipe(res);
     } catch (err) {
         console.error('Stream failed:', err);
         res.status(500).json({ error: true, message: 'Stream failed: ' + err.message });
