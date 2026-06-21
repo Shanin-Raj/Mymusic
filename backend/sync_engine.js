@@ -36,7 +36,9 @@ function initSyncEngine(server, admin) {
         });
 
         // Create Room
-        socket.on('create_room', (callback) => {
+        socket.on('create_room', (...args) => {
+            const callback = args.length > 0 && typeof args[args.length - 1] === 'function' ? args.pop() : null;
+            
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let roomId = '';
             for (let i = 0; i < 5; i++) {
