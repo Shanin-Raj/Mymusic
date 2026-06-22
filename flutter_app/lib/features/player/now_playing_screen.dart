@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
 import '../../providers/audio_provider.dart';
 import '../../widgets/now_playing_animation.dart';
+import '../../widgets/download_button.dart';
 import 'queue_screen.dart';
 import '../../services/api_service.dart';
 
@@ -292,13 +293,25 @@ class NowPlayingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Bottom row — timer + queue ─────────────────────────
+                // ── Bottom row — timer + download + queue ─────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
                       icon: Icon(Icons.timer_outlined, color: iconDimmedColor, size: 22),
                       onPressed: () => _showSleepTimerPicker(context, audioProvider),
+                    ),
+                    Builder(
+                      builder: (context) {
+                        final songMap = {
+                          'id': song.id,
+                          'name': song.title,
+                          'artist': song.artist ?? 'Unknown',
+                          'image': song.artUri?.toString(),
+                          'duration_ms': song.duration?.inMilliseconds ?? 0,
+                        };
+                        return DownloadButton(song: songMap, size: 22);
+                      },
                     ),
                     IconButton(
                       icon: Icon(Icons.queue_music, color: iconDimmedColor, size: 22),

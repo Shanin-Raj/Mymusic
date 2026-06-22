@@ -6,6 +6,7 @@ import '../../providers/audio_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/song_tile.dart';
 import '../../widgets/mini_player.dart';
+import '../../providers/download_provider.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final String playlistId;
@@ -345,16 +346,44 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _showAddSongsSheet,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Songs'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: isDark ? Colors.white : MyColors.darkText,
-                      side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      minimumSize: const Size(120, 48),
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.download_for_offline),
+                        color: isDark ? Colors.white : MyColors.darkText,
+                        iconSize: 28,
+                        onPressed: () {
+                          final downloadProvider = context.read<DownloadProvider>();
+                          int count = 0;
+                          for (final song in songs) {
+                            final songId = (song['id'] ?? song['_id'] ?? '').toString();
+                            if (!downloadProvider.isDownloaded(songId) && !downloadProvider.isDownloading(songId)) {
+                              downloadProvider.startDownload(song);
+                              count++;
+                            }
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(count > 0 ? 'Started downloading $count songs' : 'All songs are already downloaded'),
+                              backgroundColor: count > 0 ? MyColors.greenColor : Colors.grey,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      OutlinedButton.icon(
+                        onPressed: _showAddSongsSheet,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white : MyColors.darkText,
+                          side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                          minimumSize: const Size(80, 48),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -374,6 +403,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   isCurrent: isCurrent,
                   isPlaying: audioProvider.isPlaying,
                   song: song,
+                  showDownload: true,
                   onTap: () => audioProvider.playSong(song, songs),
                   onRemove: () async {
                     final success = await ApiService.removeSongFromPlaylist(widget.playlistId, songId);

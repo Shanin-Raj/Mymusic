@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme_provider.dart';
 import '../../providers/audio_provider.dart';
+import '../../providers/download_provider.dart';
+import '../downloads/downloads_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -10,6 +12,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final audioProvider = context.watch<AudioProvider>();
+    final downloadProvider = context.watch<DownloadProvider>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -32,6 +35,16 @@ class SettingsScreen extends StatelessWidget {
               value: themeProvider.themeMode == ThemeMode.dark,
               onChanged: (_) => themeProvider.toggleTheme(),
               activeColor: theme.primaryColor,
+            ),
+          ),
+          Divider(color: isDark ? Colors.white10 : Colors.black12),
+          ListTile(
+            title: const Text('Downloads'),
+            subtitle: Text('Manage offline songs (${downloadProvider.getDownloadedCount()} downloaded)'),
+            trailing: const Icon(Icons.download, color: Colors.blue),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DownloadsScreen()),
             ),
           ),
           Divider(color: isDark ? Colors.white10 : Colors.black12),

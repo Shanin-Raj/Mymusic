@@ -1,50 +1,61 @@
 # listening-room-flutter-client Specification
 
 ## Purpose
-TBD - created by archiving change listening-room. Update Purpose after archive.
+Specifies the client-side synchronization and playback control mechanics inside the Flutter application.
+
 ## Requirements
-### Requirement: Room Connection and Lifecycle
-The Flutter client SHALL provide a mechanism to interact with the backend room API.
 
-#### Scenario: User creates a new room
-- **WHEN** user requests to create a room
-- **THEN** the client sends a POST request to `/api/rooms` and begins an SSE connection to `/api/rooms/:roomId/stream` using the returned room ID.
+### Requirement: Room Connection and Lifecycle (WebSockets)
+The Flutter client SHALL maintain a persistent Socket.io connection to synchronize playback state.
 
-#### Scenario: User joins an existing room
-- **WHEN** user requests to join a room with a specific code
-- **THEN** the client verifies the room exists via GET `/api/rooms/:roomId` and then begins an SSE connection to `/api/rooms/:roomId/stream`.
+#### Scenario: Connecting with Authentication
+- **WHEN** connecting to the synchronization server
+- **THEN** the client retrieves the current Firebase User ID token and attaches it to the authentication payload of the socket handshake.
+- **AND** the connection MUST use the `websocket` transport exclusively to bypass mobile carrier HTTP polling issues.
 
-#### Scenario: User leaves a room
-- **WHEN** user requests to leave the room
-- **THEN** the client closes the SSE connection and stops broadcasting or receiving state updates.
+#### Scenario: Room Lifecycle operations
+- **WHEN** the user creates a room, the client emits `create_room` and receives the generated 5-character uppercase room code.
+- **WHEN** the user joins a room, the client emits `join_room` with the code.
+- **WHEN** the user leaves a room, the client emits `leave_room` and disconnects.
 
-### Requirement: Soft Sync Audio Playback
-The Flutter client SHALL update its local playback state based on incoming SSE room updates without introducing audio stutter.
+---
 
-#### Scenario: Receiving song change
-- **WHEN** the SSE stream broadcasts a new `currentSongId` that differs from the local `currentSongId`
-- **THEN** the client fetches and plays the new song.
+### Requirement: Future-Scheduled Playback
+The Flutter client SHALL schedule playback to trigger at a specific server-defined timestamp to ensure near-zero lag between users.
 
-#### Scenario: Receiving play state change
-- **WHEN** the SSE stream broadcasts an `isPlaying` state that differs from the local state
-- **THEN** the client plays or pauses the audio player to match the server state.
+#### Scenario: Playback Scheduling
+- **WHEN** the client receives a `PLAY_EXECUTE` or `TRACK_CHANGE_EXECUTE` event from the socket
+- **THEN** the client determines the time difference `delay = targetServerTime - currentServerTime` using the synchronized server clock.
+- **IF** `delay > 0`:
+  - The client seeks to the target position and starts a timer for `delay` milliseconds, playing the track exactly when the timer fires.
+- **IF** `delay <= 0` (the scheduled start was missed due to network delays):
+  - The client calculates the offset `missedTime = -delay`.
+  - The client seeks directly to `targetPosition + missedTime` and plays immediately to catch up.
 
-#### Scenario: Receiving position update within threshold
-- **WHEN** the SSE stream broadcasts a `position` and the calculated expected position differs from the local player's position by LESS than 2000 milliseconds
-- **THEN** the client ignores the seek request to prevent stuttering.
+---
 
-#### Scenario: Receiving position update outside threshold
-- **WHEN** the SSE stream broadcasts a `position` and the calculated expected position differs from the local player's position by MORE than 2000 milliseconds
-- **THEN** the client calls `seek()` to the expected position to regain synchronization.
+### Requirement: Dynamic Drift Correction
+The Flutter client SHALL continuously monitor and correct audio synchronization drift relative to the server clock without interrupting playback.
+
+#### Scenario: Monitoring Playback Sync
+- **WHEN** playing in a room, the client runs a check every 10 seconds.
+- **THEN** it calculates `expectedPosition = startPosition + (currentServerTime - startServerTime)`.
+- **AND** compares it with `actualPosition = player.position`.
+
+#### Scenario: Drift Correction Actions
+- **IF** drift is > 500ms or < -500ms:
+  - Perform a hard seek to `expectedPosition`.
+- **IF** drift is between 50ms and 500ms (audio is lagging):
+  - Set the player playback speed to `1.05` for 2 seconds to catch up, then reset to `1.0`.
+- **IF** drift is between -50ms and -500ms (audio is leading):
+  - Set the player playback speed to `0.95` for 2 seconds to let others catch up, then reset to `1.0`.
+
+---
 
 ### Requirement: State Broadcasting
-The Flutter client SHALL broadcast local playback actions to the room if connected.
+The Flutter client SHALL route all user playback interactions through WebSocket intents when in an active room.
 
-#### Scenario: User performs playback action while in a room
-- **WHEN** a user who is connected to a room performs a play, pause, or seek action locally
-- **THEN** the client sends a POST request to `/api/rooms/:roomId/update` containing the new `currentSongId`, `isPlaying`, and `position` before or immediately alongside performing the local action.
-
-#### Scenario: Preventing infinite update loops
-- **WHEN** the client receives an SSE update and applies it locally (e.g., calling `seek` or `play`)
-- **THEN** the client MUST NOT trigger a recursive broadcast back to the server for that specific automated action.
-
+#### Scenario: User controls playback in a room
+- **WHEN** the host presses play, pause, seek, or changes track
+- **THEN** the client intercepts the local player control and sends a `PLAY_INTENT`, `PAUSE_INTENT`, `SEEK_INTENT`, or `CHANGE_TRACK_INTENT` event to the backend.
+- **AND** does NOT perform the playback action locally until it receives the corresponding `sync_execute` broadcast from the server.

@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import '../../core/theme_provider.dart';
 import '../../services/api_service.dart';
 import '../../providers/audio_provider.dart';
+import '../../providers/download_provider.dart';
 import '../../widgets/recent_plays_chip.dart';
 import '../../core/constants.dart';
 import '../../features/player/settings_screen.dart';
+import '../../services/offline_service.dart';
+import '../../widgets/offline_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -90,6 +93,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
+
+                    if (!audioProvider.isOnline) const OfflineBanner(),
 
                     // Recently Played Grid
                     Text(

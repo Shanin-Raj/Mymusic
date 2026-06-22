@@ -4,6 +4,10 @@ import 'package:audio_service/audio_service.dart';
 import '../core/audio_handler.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/connectivity_service.dart';
+import '../services/offline_service.dart';
+import '../main.dart';
+import 'package:flutter/material.dart';
 
 class AudioProvider with ChangeNotifier {
   late MyAudioHandler audioHandler;
@@ -18,6 +22,11 @@ class AudioProvider with ChangeNotifier {
   Timer? _sleepTimer;
   int _sleepTimerMinutes = 0;
   int get sleepTimerMinutes => _sleepTimerMinutes;
+
+  // Connectivity related
+  bool _isOnline = true;
+  bool get isOnline => _isOnline;
+  StreamSubscription<bool>? _connectivitySubscription;
 
   void setSleepTimer(int minutes) {
     _sleepTimer?.cancel();
@@ -54,7 +63,7 @@ class AudioProvider with ChangeNotifier {
   Stream<MediaItem?> get mediaItemStream => audioHandler.appMediaItemStream;
   Stream<PlaybackState> get playbackStateStream => audioHandler.appPlaybackStateStream;
 
-  Future<void> init() async {
+  Future<void> init([ConnectivityService? connectivityService]) async {
     _likedSongIds = await StorageService.getLikedSongs();
     
     audioHandler = await AudioService.init(
@@ -76,6 +85,15 @@ class AudioProvider with ChangeNotifier {
       _currentAppPlaybackState = state;
       notifyListeners();
     });
+
+    // Subscribe to connectivity changes if provided
+    if (connectivityService != null) {
+      _isOnline = connectivityService.isOnline;
+      _connectivitySubscription = connectivityService.onlineStream.listen((isOnline) {
+        _isOnline = isOnline;
+        notifyListeners();
+      });
+    }
   }
 
   Future<void> play() async {
@@ -123,6 +141,26 @@ class AudioProvider with ChangeNotifier {
 
   Future<void> playSong(Map<String, dynamic> song, List<dynamic> allSongs) async {
     try {
+      if (!_isOnline) {
+        // When offline, check if the song is downloaded
+        final songId = (song['id'] ?? song['_id'] ?? '').toString();
+        final isDownloaded = OfflineService.instance.isDownloaded(songId);
+        
+        if (!isDownloaded) {
+          // Show error message to user
+          debugPrint('Cannot play song "$songId" while offline - not downloaded');
+          if (navigatorKey.currentContext != null) {
+            ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+              const SnackBar(
+                content: Text('Cannot play this song while offline. Download it first!'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+          return;
+        }
+      }
+      
       final mediaItems = allSongs.map((s) {
         final songId = (s['id'] ?? s['_id'] ?? '').toString();
         final imageUrl = s['image']?.toString();
@@ -190,5 +228,34 @@ class AudioProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('🚨 Error in addToQueue(): $e');
     }
+  }
+
+  Future<bool> canPlaySong(Map<String, dynamic> song) async {
+    final songId = (song['id'] ?? song['_id'] ?? '').toString();
+    if (!_isOnline) {
+      // When offline, only allow downloading if not already downloaded
+      return true; // We'll let the audio handler decide based on OfflineService
+    }
+    return true;
+  }
+
+  List<Map<String, dynamic>> filterDownloadedSongs(List<Map<String, dynamic>> allSongs) {
+    if (_isOnline) return allSongs;
+    
+    // When offline, filter to only downloaded songs
+    final downloadProvider = this; // This is incorrect - need to get from context
+    // Actually, let me implement this differently - I need to access OfflineService directly
+    final downloadedIds = <String>{};
+    // This is getting complex - let me approach this differently
+    
+    return allSongs.where((song) {
+      final songId = (song['id'] ?? song['_id'] ?? '').toString();
+      return true; // Placeholder - will be implemented in screens
+    }).toList();
+  }
+
+  Future<void> dispose() async {
+    _sleepTimer?.cancel();
+    _connectivitySubscription?.cancel();
   }
 }

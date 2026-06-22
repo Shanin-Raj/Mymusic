@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants.dart';
 import '../providers/audio_provider.dart';
+import '../providers/download_provider.dart';
 import '../services/api_service.dart';
+import 'download_button.dart';
 
 class SongTile extends StatelessWidget {
   const SongTile({
@@ -15,6 +17,7 @@ class SongTile extends StatelessWidget {
     this.isPlaying = false,
     this.song,
     this.showHeart = false,
+    this.showDownload = false,
     this.onRemove,
   });
 
@@ -26,6 +29,7 @@ class SongTile extends StatelessWidget {
   final bool isPlaying;
   final Map<String, dynamic>? song;
   final bool showHeart;
+  final bool showDownload;
   final VoidCallback? onRemove;
 
   void _showAddToPlaylistSheet(BuildContext context, Map<String, dynamic> targetSong) {
@@ -227,6 +231,10 @@ class SongTile extends StatelessWidget {
                 },
               ),
             if (showHeart) const SizedBox(width: 8),
+            // Download Button
+            if (showDownload && song != null)
+              DownloadButton(song: song!, size: 20),
+            if (showDownload && song != null) const SizedBox(width: 8),
             // More options Popup Menu
             PopupMenuButton<String>(
               icon: Icon(Icons.more_vert, color: subColor, size: 20),

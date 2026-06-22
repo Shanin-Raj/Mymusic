@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter_app/services/api_service.dart';
 import 'package:flutter_app/services/audio_cache_service.dart';
+import 'package:flutter_app/services/offline_service.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final _player = AudioPlayer();
@@ -248,6 +249,17 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   @override
+  Future<void> onTaskRemoved() async {
+    try {
+      debugPrint('📱 App removed from recents. Stopping background audio service.');
+      await stop();
+      await super.onTaskRemoved();
+    } catch (e) {
+      debugPrint('🚨 Error in onTaskRemoved(): $e');
+    }
+  }
+
+  @override
   Future<void> skipToNext() async {
     try {
       AudioCacheService.instance.touch();
@@ -436,14 +448,19 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<List<AudioSource>> _buildSources(List<MediaItem> items) async {
     final sources = <AudioSource>[];
     for (final item in items) {
-      final cachedPath = await AudioCacheService.instance.getCachedPath(item.id);
-      if (cachedPath != null) {
-        sources.add(AudioSource.file(cachedPath, tag: item));
+      final offlinePath = OfflineService.instance.getOfflinePath(item.id);
+      if (offlinePath != null) {
+        sources.add(AudioSource.file(offlinePath, tag: item));
       } else {
-        sources.add(AudioSource.uri(
-          Uri.parse(ApiService.getStreamUrl(item.id)),
-          tag: item,
-        ));
+        final cachedPath = await AudioCacheService.instance.getCachedPath(item.id);
+        if (cachedPath != null) {
+          sources.add(AudioSource.file(cachedPath, tag: item));
+        } else {
+          sources.add(AudioSource.uri(
+            Uri.parse(ApiService.getStreamUrl(item.id)),
+            tag: item,
+          ));
+        }
       }
     }
     return sources;

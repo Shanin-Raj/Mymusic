@@ -8,6 +8,7 @@ import '../../widgets/song_tile.dart';
 import '../../widgets/category_card.dart';
 import '../../widgets/search_box.dart';
 import '../../core/constants.dart';
+import '../../widgets/offline_banner.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -103,6 +104,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: AppTextStyles.greeting(color: titleColor),
               ),
               const SizedBox(height: 12),
+              if (!audioProvider.isOnline) const OfflineBanner(),
               SearchBox(
                 controller: _searchController,
                 onChanged: _onSearchChanged,

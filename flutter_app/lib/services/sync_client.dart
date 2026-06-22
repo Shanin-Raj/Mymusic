@@ -58,24 +58,35 @@ class SyncClient {
     _socket!.onConnectError((data) {
       debugPrint('SyncClient: Connection error: $data');
       if (!connectCompleter.isCompleted) {
-        connectCompleter.completeError(Exception('Connection failed'));
+        connectCompleter.completeError(Exception('Connection rejected: $data'));
+      }
+    });
+
+    _socket!.onError((data) {
+      debugPrint('SyncClient: Socket error: $data');
+      if (!connectCompleter.isCompleted) {
+        connectCompleter.completeError(Exception('Network error: $data'));
       }
     });
 
     _socket!.on('sync_execute', (data) {
-      _executeController.add(data);
+      if (data is Map) {
+        _executeController.add(Map<String, dynamic>.from(data));
+      }
     });
 
     _socket!.on('user_joined', (data) {
-      if (_roomState != null) {
-        _roomState!['totalUsers'] = data['totalUsers'];
+      if (_roomState != null && data is Map) {
+        final parsedData = Map<String, dynamic>.from(data);
+        _roomState!['totalUsers'] = parsedData['totalUsers'];
         _stateController.add(_roomState);
       }
     });
 
     _socket!.on('user_left', (data) {
-      if (_roomState != null) {
-        _roomState!['totalUsers'] = data['totalUsers'];
+      if (_roomState != null && data is Map) {
+        final parsedData = Map<String, dynamic>.from(data);
+        _roomState!['totalUsers'] = parsedData['totalUsers'];
         _stateController.add(_roomState);
       }
     });
@@ -86,9 +97,9 @@ class SyncClient {
 
     _socket!.connect();
 
-    // Wait for connection with timeout
+    // Wait for connection with timeout (60s to account for Hugging Face Space wake-up)
     return connectCompleter.future.timeout(
-      const Duration(seconds: 10),
+      const Duration(seconds: 60),
       onTimeout: () {
         throw Exception('Connection timeout');
       },
@@ -129,19 +140,24 @@ class SyncClient {
     final completer = Completer<void>();
     
     // Add timeout to prevent hanging
-    Timer(const Duration(seconds: 5), () {
+    Timer(const Duration(seconds: 15), () {
       if (!completer.isCompleted) completer.completeError('Connection timeout');
     });
 
     _socket!.emitWithAck('create_room', null, ack: (data) {
       if (completer.isCompleted) return;
-      if (data['success']) {
-        _currentRoomId = data['roomId'];
-        _roomState = data['state'];
-        _stateController.add(_roomState);
-        completer.complete();
+      if (data is Map) {
+        final parsedData = Map<String, dynamic>.from(data);
+        if (parsedData['success'] == true) {
+          _currentRoomId = parsedData['roomId'];
+          _roomState = parsedData['state'] != null ? Map<String, dynamic>.from(parsedData['state']) : null;
+          _stateController.add(_roomState);
+          completer.complete();
+        } else {
+          completer.completeError('Failed to create room');
+        }
       } else {
-        completer.completeError('Failed to create room');
+        completer.completeError('Invalid response from server');
       }
     });
     return completer.future;
@@ -152,19 +168,24 @@ class SyncClient {
     final completer = Completer<void>();
     
     // Add timeout to prevent hanging
-    Timer(const Duration(seconds: 5), () {
+    Timer(const Duration(seconds: 15), () {
       if (!completer.isCompleted) completer.completeError('Connection timeout');
     });
 
     _socket!.emitWithAck('join_room', roomId, ack: (data) {
       if (completer.isCompleted) return;
-      if (data['success']) {
-        _currentRoomId = roomId;
-        _roomState = data['state'];
-        _stateController.add(_roomState);
-        completer.complete();
+      if (data is Map) {
+        final parsedData = Map<String, dynamic>.from(data);
+        if (parsedData['success'] == true) {
+          _currentRoomId = roomId;
+          _roomState = parsedData['state'] != null ? Map<String, dynamic>.from(parsedData['state']) : null;
+          _stateController.add(_roomState);
+          completer.complete();
+        } else {
+          completer.completeError(parsedData['error'] ?? 'Failed to join room');
+        }
       } else {
-        completer.completeError(data['error'] ?? 'Failed to join room');
+        completer.completeError('Invalid response from server');
       }
     });
     return completer.future;

@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
 import '../../providers/audio_provider.dart';
+import '../../providers/download_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline_service.dart';
 import '../../widgets/song_tile.dart';
 import 'playlist_detail_screen.dart';
 import 'artist_detail_screen.dart';
 import 'album_detail_screen.dart';
+import '../../widgets/offline_banner.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -268,6 +271,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (_selectedFilter == 'Artists') appBarTitle = 'Your Artists';
     if (_selectedFilter == 'Albums') appBarTitle = 'Your Albums';
     if (_selectedFilter == 'Liked Songs') appBarTitle = 'Liked Songs';
+    if (_selectedFilter == 'Downloads') appBarTitle = 'Downloads';
 
     return Scaffold(
       backgroundColor: bg,
@@ -309,7 +313,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 16),
-                        child: _buildFilterChips(),
+                        child: Column(
+                          children: [
+                            if (!audioProvider.isOnline)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 16),
+                                child: OfflineBanner(),
+                              ),
+                            _buildFilterChips(),
+                          ],
+                        ),
                       ),
                     ),
                     _buildContentSliver(context),
@@ -321,7 +334,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildFilterChips() {
-    final filters = ['Playlists', 'Artists', 'Albums', 'Liked Songs'];
+    final filters = ['Playlists', 'Artists', 'Albums', 'Liked Songs', 'Downloads'];
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SizedBox(
@@ -389,6 +402,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
       return _buildAlbumsSliver();
     } else if (_selectedFilter == 'Liked Songs') {
       return _buildLikedSongsSliver(audioProvider);
+    } else if (_selectedFilter == 'Downloads') {
+      return _buildDownloadsSliver(audioProvider);
     } else {
       return _buildAllSongsSliver(audioProvider);
     }
@@ -783,6 +798,165 @@ class _LibraryScreenState extends State<LibraryScreen> {
           },
           childCount: sortedAlbums.length,
         ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadsSliver(AudioProvider audioProvider) {
+    final downloadProvider = context.watch<DownloadProvider>();
+    final downloadedSongs = downloadProvider.getAllDownloaded();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subColor = isDark ? MyColors.lightGrey : MyColors.mutedGrey;
+
+    if (downloadedSongs.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.download_outlined, size: 64, color: subColor.withOpacity(0.5)),
+              const SizedBox(height: 12),
+              Text(
+                'No downloads yet',
+                style: TextStyle(
+                  color: isDark ? Colors.white : MyColors.darkText,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Download songs to listen offline',
+                style: TextStyle(color: subColor, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final storageUsed = downloadProvider.getStorageUsed();
+    final storageFormatted = downloadProvider.formatStorageSize(storageUsed);
+
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.storage, size: 16, color: subColor),
+                const SizedBox(width: 8),
+                Text(
+                  '$storageFormatted used',
+                  style: TextStyle(color: subColor, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(width: 16),
+                Container(width: 1, height: 14, color: subColor.withOpacity(0.3)),
+                const SizedBox(width: 16),
+                Text(
+                  '${downloadedSongs.length} song${downloadedSongs.length == 1 ? "" : "s"}',
+                  style: TextStyle(color: subColor, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const Spacer(),
+                if (downloadedSongs.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => _showClearAllDownloadsDialog(downloadProvider, storageFormatted),
+                    child: Text(
+                      'Clear All',
+                      style: TextStyle(color: Colors.redAccent.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final song = downloadedSongs[index];
+              final songMap = {
+                'id': song.id,
+                'name': song.name,
+                'artist': song.artist,
+                'album': song.album,
+                'image': song.image,
+                'duration_ms': song.durationMs,
+              };
+              final isCurrent = audioProvider.currentSong?.id == song.id;
+
+              return Dismissible(
+                key: Key('dl_${song.id}'),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.redAccent.withOpacity(0.15),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 24),
+                  child: const Icon(Icons.delete, color: Colors.redAccent),
+                ),
+                onDismissed: (_) {
+                  downloadProvider.removeDownload(song.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('"${song.name}" removed from downloads')),
+                  );
+                },
+                child: SongTile(
+                  image: song.image ?? '',
+                  title: song.name,
+                  artist: song.artist,
+                  isCurrent: isCurrent,
+                  isPlaying: audioProvider.isPlaying,
+                  song: songMap,
+                  showDownload: true,
+                  onTap: () {
+                    final allSongMaps = downloadedSongs.map((s) => <String, dynamic>{
+                      'id': s.id,
+                      'name': s.name,
+                      'artist': s.artist,
+                      'album': s.album,
+                      'image': s.image,
+                      'duration_ms': s.durationMs,
+                    }).toList();
+                    audioProvider.playSong(songMap, allSongMaps);
+                  },
+                ),
+              );
+            },
+            childCount: downloadedSongs.length,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showClearAllDownloadsDialog(DownloadProvider downloadProvider, String storageFormatted) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MyColors.cardColor,
+        title: const Text('Clear All Downloads', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Remove all downloaded songs? This will free $storageFormatted.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              downloadProvider.clearAllDownloads();
+              Navigator.pop(ctx);
+            },
+            child: const Text('Clear All', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'connectivity_service.dart';
+import 'offline_service.dart';
 
 class ApiService {
   // Base URL - will be configurable later for Render migration
@@ -23,6 +25,10 @@ class ApiService {
   }
 
   static Future<List<dynamic>> fetchSongs({bool forceRefresh = false}) async {
+    if (!ConnectivityService.instance.isOnline) {
+      return OfflineService.instance.getAllDownloaded().map((s) => s.toJson()).toList();
+    }
+
     if (_songsFuture != null && !forceRefresh) {
       return _songsFuture!;
     }
@@ -43,6 +49,10 @@ class ApiService {
   }
 
   static Future<List<dynamic>> fetchPlaylists({bool forceRefresh = false}) async {
+    if (!ConnectivityService.instance.isOnline) {
+      return _cachedPlaylists ?? [];
+    }
+
     if (_playlistsFuture != null && !forceRefresh) {
       return _playlistsFuture!;
     }
