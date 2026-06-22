@@ -102,10 +102,7 @@ function initSyncEngine(server, admin) {
             
             const room = activeRooms.get(roomId);
             
-            if (room.hostId !== socket.user.uid) {
-                // Ignore if not host
-                return;
-            }
+            // Any user in the room can control playback
 
             const timestamp = Date.now();
             

@@ -50,7 +50,9 @@ class AudioController {
           // Fetch the song details from the API to build a proper MediaItem
           final songData = await ApiService.fetchSongDetail(songId);
           // Play the song through AudioProvider so it shows in mini-player etc
+          provider.isSyncing = true;
           await provider.playSong(songData, [songData]);
+          provider.isSyncing = false;
           
           // Schedule playback to sync with other devices
           if (targetTimestamp != null) {
@@ -69,15 +71,19 @@ class AudioController {
       }
     } else if (type == 'PAUSE_EXECUTE') {
       _driftTimer?.cancel();
+      provider.isSyncing = true;
       await provider.pause();
       final position = event['position'] as int?;
       if (position != null) {
         await provider.seek(Duration(milliseconds: position));
       }
+      provider.isSyncing = false;
     } else if (type == 'SEEK_EXECUTE') {
       final position = event['position'] as int?;
       if (position != null) {
+        provider.isSyncing = true;
         await provider.seek(Duration(milliseconds: position));
+        provider.isSyncing = false;
       }
     }
   }
@@ -85,14 +91,18 @@ class AudioController {
   void _schedulePlayback(AudioProvider provider, int targetServerTime, int positionMs) {
     _driftTimer?.cancel();
     
+    provider.isSyncing = true;
     provider.seek(Duration(milliseconds: positionMs)).then((_) {
+      provider.isSyncing = false;
       final currentServerTime = SyncClient.instance.getServerTime();
       final delayMs = targetServerTime - currentServerTime;
 
       if (delayMs > 0) {
         debugPrint('AudioController: Scheduling play in $delayMs ms');
         Timer(Duration(milliseconds: delayMs), () {
+          provider.isSyncing = true;
           provider.play();
+          provider.isSyncing = false;
           _playStartServerTime = targetServerTime;
           _playStartPositionMs = positionMs;
           _startDriftCorrection(provider);
@@ -101,8 +111,10 @@ class AudioController {
         // We missed the target timestamp, skip ahead
         debugPrint('AudioController: Missed schedule by ${-delayMs} ms. Catching up.');
         final adjustedPositionMs = positionMs + (-delayMs);
+        provider.isSyncing = true;
         provider.seek(Duration(milliseconds: adjustedPositionMs)).then((_) {
           provider.play();
+          provider.isSyncing = false;
           _playStartServerTime = targetServerTime;
           _playStartPositionMs = positionMs;
           _startDriftCorrection(provider);

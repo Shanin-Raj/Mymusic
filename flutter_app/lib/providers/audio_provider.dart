@@ -8,6 +8,8 @@ import '../services/connectivity_service.dart';
 import '../services/offline_service.dart';
 import '../main.dart';
 import 'package:flutter/material.dart';
+import '../services/sync_client.dart';
+import '../services/audio_controller.dart';
 
 class AudioProvider with ChangeNotifier {
   late MyAudioHandler audioHandler;
@@ -27,6 +29,9 @@ class AudioProvider with ChangeNotifier {
   bool _isOnline = true;
   bool get isOnline => _isOnline;
   StreamSubscription<bool>? _connectivitySubscription;
+
+  // Syncing state flag
+  bool isSyncing = false;
 
   void setSleepTimer(int minutes) {
     _sleepTimer?.cancel();
@@ -97,22 +102,56 @@ class AudioProvider with ChangeNotifier {
   }
 
   Future<void> play() async {
+    if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
+      SyncClient.instance.sendIntent('PLAY_INTENT', {
+        'position': playbackState?.position.inMilliseconds ?? 0
+      });
+      return;
+    }
     await audioHandler.play();
   }
   
   Future<void> pause() async {
+    if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
+      SyncClient.instance.sendIntent('PAUSE_INTENT', {
+        'position': playbackState?.position.inMilliseconds ?? 0
+      });
+      return;
+    }
     await audioHandler.pause();
   }
 
   Future<void> skipToNext() async {
+    if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
+      final queue = audioHandler.queue.value;
+      final currentIndex = playbackState?.queueIndex ?? 0;
+      if (currentIndex + 1 < queue.length) {
+        final nextItem = queue[currentIndex + 1];
+        AudioController.instance.changeTrack(nextItem.id, ApiService.getStreamUrl(nextItem.id));
+      }
+      return;
+    }
     await audioHandler.skipToNext();
   }
 
   Future<void> skipToPrevious() async {
+    if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
+      final queue = audioHandler.queue.value;
+      final currentIndex = playbackState?.queueIndex ?? 0;
+      if (currentIndex - 1 >= 0) {
+        final prevItem = queue[currentIndex - 1];
+        AudioController.instance.changeTrack(prevItem.id, ApiService.getStreamUrl(prevItem.id));
+      }
+      return;
+    }
     await audioHandler.skipToPrevious();
   }
 
   Future<void> seek(Duration position) async {
+    if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
+      AudioController.instance.seekInRoom(position);
+      return;
+    }
     await audioHandler.seek(position);
   }
 
