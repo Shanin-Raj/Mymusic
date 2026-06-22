@@ -36,7 +36,7 @@ class SyncClient {
     final connectCompleter = Completer<void>();
 
     _socket = IO.io(baseUrl, IO.OptionBuilder()
-      .setTransports(['polling', 'websocket'])
+      .setTransports(['websocket'])
       .disableAutoConnect()
       .setAuth({'token': token})
       .build());
