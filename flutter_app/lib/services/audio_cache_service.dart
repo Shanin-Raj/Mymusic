@@ -22,16 +22,13 @@ class AudioCacheService {
   AudioCacheService._();
 
   void touch() {
-    _inactivityTimer?.cancel();
-    _inactivityTimer = Timer(_inactivityTimeout, () {
-      debugPrint('15min inactivity reached, clearing audio cache');
-      clearCache();
-    });
+    // No-op: We no longer clear the cache after 15 minutes of inactivity.
+    // The OS will automatically clean up the temporary directory if space is needed.
   }
 
   Future<Directory> _getCacheDir() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final dir = Directory('${appDir.path}/audio_cache');
+    final tempDir = await getTemporaryDirectory();
+    final dir = Directory('${tempDir.path}/audio_cache_v2');
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -39,13 +36,18 @@ class AudioCacheService {
   }
 
   Future<String?> getCachedPath(String songId) async {
-    if (!_downloaded.contains(songId)) return null;
     final dir = await _getCacheDir();
     final file = File('${dir.path}/$songId');
-    if (await file.exists()) {
+    if (await file.exists() && await file.length() > 0) {
+      _downloaded.add(songId);
       return file.path;
     }
+    
+    // File doesn't exist or is empty, ensure it's removed from set
     _downloaded.remove(songId);
+    if (await file.exists()) {
+      await file.delete(); // Clean up corrupted empty file
+    }
     return null;
   }
 
@@ -79,9 +81,12 @@ class AudioCacheService {
 
       if (response.statusCode == 200) {
         final dir = await _getCacheDir();
-        final file = File('${dir.path}/$songId');
-        final sink = file.openWrite();
+        final tempFile = File('${dir.path}/$songId.tmp');
+        final sink = tempFile.openWrite();
         await response.stream.pipe(sink);
+
+        final file = File('${dir.path}/$songId');
+        await tempFile.rename(file.path);
 
         _downloaded.add(songId);
         debugPrint('Downloaded song $songId to ${file.path}');

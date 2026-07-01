@@ -77,6 +77,7 @@ class AudioProvider with ChangeNotifier {
         androidNotificationChannelId: 'com.example.sonic_vault_flutter.channel.audio',
         androidNotificationChannelName: 'Music Playback',
         androidNotificationOngoing: true,
+        androidNotificationIcon: 'drawable/ic_notification',
       ),
     );
 

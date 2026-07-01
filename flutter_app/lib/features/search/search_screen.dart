@@ -9,6 +9,7 @@ import '../../widgets/category_card.dart';
 import '../../widgets/search_box.dart';
 import '../../core/constants.dart';
 import '../../widgets/offline_banner.dart';
+import '../library/playlist_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -21,8 +22,10 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _searchResults = [];
   List<dynamic> _allSongs = [];
+  List<dynamic> _playlists = [];
   List<String> _recentSearchIds = [];
   bool _isLoading = false;
+  bool _isInitialLoading = true;
   Timer? _debounce;
 
   @override
@@ -42,16 +45,36 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _loadAllSongs() async {
     try {
       final songs = await ApiService.fetchSongs();
+      final playlists = await ApiService.fetchPlaylists();
       final recents = await StorageService.getRecentSearches();
       if (mounted) {
         setState(() {
           _allSongs = songs;
+          _playlists = playlists;
           _recentSearchIds = recents;
+          _isInitialLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Failed to load songs for search: $e');
+      debugPrint('Failed to load songs or playlists for search: $e');
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+        });
+      }
     }
+  }
+
+  Color _getCategoryColor(String idSeed) {
+    int hash = 0;
+    final seedStr = idSeed.trim();
+    for (int i = 0; i < seedStr.length; i++) {
+      hash = seedStr.codeUnitAt(i) + ((hash << 5) - hash);
+    }
+    hash = hash.abs();
+
+    final double hue = (hash % 360).toDouble();
+    return HSLColor.fromAHSL(1.0, hue, 0.6, 0.4).toColor();
   }
 
   void _onSearchChanged(String query) {
@@ -230,23 +253,48 @@ class _SearchScreenState extends State<SearchScreen> {
             style: AppTextStyles.sectionHeader(color: titleColor),
           ),
           const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.6,
-            children: const [
-              CategoryCard(title: 'Music', color: Colors.redAccent),
-              CategoryCard(title: 'Live Events', color: Colors.deepPurpleAccent),
-              CategoryCard(title: 'Made For You', color: Color(0xFF1E3264)),
-              CategoryCard(title: 'New Releases', color: Colors.pinkAccent),
-              CategoryCard(title: 'Hindi', color: Colors.orangeAccent),
-              CategoryCard(title: 'Punjabi', color: Colors.green),
-              CategoryCard(title: 'Tamil', color: Color(0xFFC68B17)),
-            ],
-          ),
+          if (_isInitialLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(color: MyColors.greenColor),
+              ),
+            )
+          else if (_playlists.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text('No categories found', style: TextStyle(color: Colors.white54)),
+              ),
+            )
+          else
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.6,
+              children: _playlists.map((pl) {
+                return CategoryCard(
+                  title: pl['name'] ?? 'Playlist',
+                  color: _getCategoryColor((pl['id'] ?? pl['name'] ?? '').toString()),
+                  image: pl['image'] != null && pl['image'].toString().isNotEmpty
+                      ? ApiService.getImageUrl(pl['image'])
+                      : null,
+                  onTap: () {
+                    if (pl['id'] != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PlaylistDetailScreen(playlistId: pl['id']),
+                        ),
+                      );
+                    }
+                  },
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
