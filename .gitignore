@@ -20,3 +20,9 @@ dist/
 build/
 android/
 *.apk
+
+# IDE & Agent caches
+.stitch-mcp/
+
+# Reference materials
+reference/

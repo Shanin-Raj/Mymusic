@@ -12,13 +12,13 @@ function getYTMetadata(url) {
     console.log('📡 Extracting metadata from YouTube...');
     
     // Attempt 1: Run yt-dlp directly
-    let result = spawnSync('yt-dlp', ['--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', '--', url], { encoding: 'utf8' });
+    let result = spawnSync('yt-dlp', ['--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', '--js-runtimes', 'node', '--', url], { encoding: 'utf8' });
     
     // Fallback: If direct execution failed, run python -m yt_dlp
     if (result.error || result.status !== 0) {
         console.log('⚠️ yt-dlp direct execution failed, trying python fallback...');
         const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-        const args = [ '-m', 'yt_dlp', '--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', '--', url ];
+        const args = [ '-m', 'yt_dlp', '--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', '--js-runtimes', 'node', '--', url ];
         result = spawnSync(pythonCmd, args, { encoding: 'utf8' });
     }
 

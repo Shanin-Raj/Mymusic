@@ -16,7 +16,7 @@ async function downloadSong(songName, artistName, directUrl = null) {
     '--extract-audio',
     '--audio-format', 'm4a',
     '--no-playlist',
-    '--js-runtimes', 'nodejs'
+    '--js-runtimes', 'node'
   ];
 
   const ffmpegLocation = process.env.FFMPEG_LOCATION;
