@@ -23,6 +23,12 @@ android/
 
 # IDE & Agent caches
 .stitch-mcp/
+.gemini/
+.idea/
+.opencode/
+docs/
+security_reports/
+ui_design_plan.md
 
 # Reference materials
 reference/
