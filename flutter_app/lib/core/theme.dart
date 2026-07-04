@@ -18,7 +18,6 @@ class SonicTheme {
         primary: sonicGreen,
         secondary: sonicGreen,
         surface: darkSurface,
-        background: darkBackground,
       ),
       textTheme: GoogleFonts.montserratTextTheme(ThemeData.dark().textTheme),
       appBarTheme: const AppBarTheme(
@@ -48,7 +47,6 @@ class SonicTheme {
         primary: sonicGreen,
         secondary: sonicGreen,
         surface: lightSurface,
-        background: lightBackground,
       ),
       textTheme: GoogleFonts.montserratTextTheme(ThemeData.light().textTheme),
       appBarTheme: const AppBarTheme(

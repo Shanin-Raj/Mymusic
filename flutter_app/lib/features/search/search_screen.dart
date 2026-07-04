@@ -205,7 +205,6 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 12),
             ...recentSongs.map((song) {
               final songId = (song['id'] ?? song['_id'] ?? '').toString();
-              final isCurrent = audioProvider.currentSong?.id == songId;
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: ClipRRect(
@@ -215,7 +214,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 48,
                     height: 48,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       width: 48,
                       height: 48,
                       color: MyColors.cardColor,

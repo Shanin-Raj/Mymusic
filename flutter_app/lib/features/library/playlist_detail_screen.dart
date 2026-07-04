@@ -97,7 +97,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                             child: Image.network(
                               ApiService.getImageUrl(song['image']),
                               width: 40, height: 40, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 width: 40, height: 40, color: Colors.grey[800],
                                 child: const Icon(Icons.music_note, color: Colors.white70),
                               ),
@@ -286,7 +286,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.45 : 0.15),
+                              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.15),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -297,7 +297,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                           child: Image.network(
                             ApiService.getImageUrl(playlistImage),
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               color: MyColors.cardColor,
                               child: const Icon(Icons.playlist_play, size: 80, color: Colors.white30),
                             ),

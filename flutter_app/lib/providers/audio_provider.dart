@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:audio_service/audio_service.dart';
 import '../core/audio_handler.dart';
 import '../services/api_service.dart';
@@ -271,31 +270,21 @@ class AudioProvider with ChangeNotifier {
   }
 
   Future<bool> canPlaySong(Map<String, dynamic> song) async {
-    final songId = (song['id'] ?? song['_id'] ?? '').toString();
-    if (!_isOnline) {
-      // When offline, only allow downloading if not already downloaded
-      return true; // We'll let the audio handler decide based on OfflineService
-    }
     return true;
   }
 
   List<Map<String, dynamic>> filterDownloadedSongs(List<Map<String, dynamic>> allSongs) {
     if (_isOnline) return allSongs;
-    
-    // When offline, filter to only downloaded songs
-    final downloadProvider = this; // This is incorrect - need to get from context
-    // Actually, let me implement this differently - I need to access OfflineService directly
-    final downloadedIds = <String>{};
-    // This is getting complex - let me approach this differently
-    
     return allSongs.where((song) {
       final songId = (song['id'] ?? song['_id'] ?? '').toString();
-      return true; // Placeholder - will be implemented in screens
+      return OfflineService.instance.isDownloaded(songId);
     }).toList();
   }
 
-  Future<void> dispose() async {
+  @override
+  void dispose() {
     _sleepTimer?.cancel();
     _connectivitySubscription?.cancel();
+    super.dispose();
   }
 }

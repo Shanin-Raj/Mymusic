@@ -152,7 +152,7 @@ class _RoomScreenState extends State<RoomScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.headset, size: 64, color: MyColors.greenColor.withOpacity(0.7)),
+            Icon(Icons.headset, size: 64, color: MyColors.greenColor.withValues(alpha: 0.7)),
             const SizedBox(height: 24),
             Text(
               'Listen Together',
@@ -200,12 +200,12 @@ class _RoomScreenState extends State<RoomScreen> {
             const SizedBox(height: 24),
             Row(
               children: [
-                Expanded(child: Divider(color: subColor.withOpacity(0.3))),
+                Expanded(child: Divider(color: subColor.withValues(alpha: 0.3))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text('OR', style: TextStyle(color: subColor, fontWeight: FontWeight.w500)),
                 ),
-                Expanded(child: Divider(color: subColor.withOpacity(0.3))),
+                Expanded(child: Divider(color: subColor.withValues(alpha: 0.3))),
               ],
             ),
             const SizedBox(height: 24),
@@ -217,7 +217,7 @@ class _RoomScreenState extends State<RoomScreen> {
                 labelStyle: TextStyle(color: subColor),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: subColor.withOpacity(0.3)),
+                  borderSide: BorderSide(color: subColor.withValues(alpha: 0.3)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -250,7 +250,7 @@ class _RoomScreenState extends State<RoomScreen> {
                 icon: const Icon(Icons.login),
                 label: const Text('Join Room'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
+                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06),
                   foregroundColor: isDark ? Colors.white : MyColors.darkText,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -279,7 +279,7 @@ class _RoomScreenState extends State<RoomScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+              color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -441,7 +441,7 @@ class _RoomScreenState extends State<RoomScreen> {
                           child: Image.network(
                             ApiService.getImageUrl(song['image'] ?? ''),
                             width: 44, height: 44, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               width: 44, height: 44,
                               color: MyColors.cardColor,
                               child: const Icon(Icons.music_note, color: Colors.white24),

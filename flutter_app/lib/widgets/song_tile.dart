@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants.dart';
 import '../providers/audio_provider.dart';
-import '../providers/download_provider.dart';
 import '../services/api_service.dart';
 import 'download_button.dart';
 
@@ -128,7 +127,7 @@ class SongTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      splashColor: MyColors.greenColor.withOpacity(0.08),
+      splashColor: MyColors.greenColor.withValues(alpha: 0.08),
       highlightColor: Colors.transparent,
       borderRadius: BorderRadius.circular(4),
       child: Padding(
@@ -148,7 +147,7 @@ class SongTile extends StatelessWidget {
                       height: 47,
                       width: 47,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         color: MyColors.cardColor,
                         child: const Icon(Icons.music_note, color: MyColors.mutedGrey, size: 18),
                       ),

@@ -106,7 +106,7 @@ class AlbumDetailScreen extends StatelessWidget {
                               width: 240,
                               height: 240,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 width: 240,
                                 height: 240,
                                 color: MyColors.cardColor,

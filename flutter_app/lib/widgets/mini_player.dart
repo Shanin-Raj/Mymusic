@@ -36,7 +36,7 @@ class MiniPlayer extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -57,7 +57,7 @@ class MiniPlayer extends StatelessWidget {
                       height: 40,
                       width: 40,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         height: 40,
                         width: 40,
                         color: MyColors.cardColor,

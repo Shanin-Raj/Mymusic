@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 // Placeholder screens
 import 'home/home_screen.dart';

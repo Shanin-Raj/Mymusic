@@ -121,7 +121,7 @@ class ApiService {
       headers: headers,
       body: json.encode({
         'name': name,
-        if (image != null) 'image': image,
+        'image': ?image,
       }),
     );
     // Invalidate playlists cache on modification

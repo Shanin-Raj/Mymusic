@@ -28,14 +28,14 @@ class RecentPlaysChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         height: 56,
         decoration: BoxDecoration(
-          color: isCurrent ? MyColors.greenColor.withOpacity(0.12) : bg,
+          color: isCurrent ? MyColors.greenColor.withValues(alpha: 0.12) : bg,
           borderRadius: BorderRadius.circular(6),
           border: isCurrent
-              ? Border.all(color: MyColors.greenColor.withOpacity(0.4), width: 1)
+              ? Border.all(color: MyColors.greenColor.withValues(alpha: 0.4), width: 1)
               : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -54,7 +54,7 @@ class RecentPlaysChip extends StatelessWidget {
                 height: 56,
                 width: 56,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   width: 56,
                   height: 56,
                   color: MyColors.cardColor,

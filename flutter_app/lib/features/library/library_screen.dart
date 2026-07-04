@@ -5,7 +5,6 @@ import '../../core/constants.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/download_provider.dart';
 import '../../services/api_service.dart';
-import '../../services/offline_service.dart';
 import '../../widgets/song_tile.dart';
 import 'playlist_detail_screen.dart';
 import 'artist_detail_screen.dart';
@@ -135,7 +134,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   width: 76,
                                   height: 76,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                                  errorBuilder: (_, _, _) => Container(
                                     width: 76, height: 76, color: Colors.grey[800],
                                     child: const Icon(Icons.music_note, color: Colors.white30),
                                   ),
@@ -581,7 +580,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -593,7 +592,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             ? Image.network(
                                 ApiService.getImageUrl(image),
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(
+                                errorBuilder: (_, _, _) => const Center(
                                   child: Icon(Icons.playlist_play, size: 56, color: Colors.white24),
                                 ),
                               )
@@ -667,7 +666,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     width: 52,
                     height: 52,
                     color: MyColors.cardColor,
@@ -759,7 +758,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -771,7 +770,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             ? Image.network(
                                 ApiService.getImageUrl(albumImage),
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(
+                                errorBuilder: (_, _, _) => const Center(
                                   child: Icon(Icons.album, size: 56, color: Colors.white24),
                                 ),
                               )
@@ -814,7 +813,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.download_outlined, size: 64, color: subColor.withOpacity(0.5)),
+              Icon(Icons.download_outlined, size: 64, color: subColor.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               Text(
                 'No downloads yet',
@@ -845,7 +844,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+              color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -857,7 +856,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   style: TextStyle(color: subColor, fontSize: 13, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(width: 16),
-                Container(width: 1, height: 14, color: subColor.withOpacity(0.3)),
+                Container(width: 1, height: 14, color: subColor.withValues(alpha: 0.3)),
                 const SizedBox(width: 16),
                 Text(
                   '${downloadedSongs.length} song${downloadedSongs.length == 1 ? "" : "s"}',
@@ -869,7 +868,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     onTap: () => _showClearAllDownloadsDialog(downloadProvider, storageFormatted),
                     child: Text(
                       'Clear All',
-                      style: TextStyle(color: Colors.redAccent.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: Colors.redAccent.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
               ],
@@ -894,7 +893,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 key: Key('dl_${song.id}'),
                 direction: DismissDirection.endToStart,
                 background: Container(
-                  color: Colors.redAccent.withOpacity(0.15),
+                  color: Colors.redAccent.withValues(alpha: 0.15),
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 24),
                   child: const Icon(Icons.delete, color: Colors.redAccent),

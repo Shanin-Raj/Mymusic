@@ -11,9 +11,6 @@ class AudioCacheService {
   static final Set<String> _downloaded = {};
   static final Map<String, Completer<String?>> _downloadCompleters = {};
 
-  Timer? _inactivityTimer;
-  static const _inactivityTimeout = Duration(minutes: 15);
-
   static AudioCacheService get instance {
     _instance ??= AudioCacheService._();
     return _instance!;
@@ -37,7 +34,7 @@ class AudioCacheService {
 
   Future<String?> getCachedPath(String songId) async {
     final dir = await _getCacheDir();
-    final file = File('${dir.path}/$songId');
+    final file = File('${dir.path}/$songId.m4a');
     if (await file.exists() && await file.length() > 0) {
       _downloaded.add(songId);
       return file.path;
@@ -85,7 +82,7 @@ class AudioCacheService {
         final sink = tempFile.openWrite();
         await response.stream.pipe(sink);
 
-        final file = File('${dir.path}/$songId');
+        final file = File('${dir.path}/$songId.m4a');
         await tempFile.rename(file.path);
 
         _downloaded.add(songId);
@@ -111,7 +108,7 @@ class AudioCacheService {
       _downloaded.remove(songId);
       _downloading.remove(songId);
       final dir = await _getCacheDir();
-      final file = File('${dir.path}/$songId');
+      final file = File('${dir.path}/$songId.m4a');
       if (await file.exists()) {
         await file.delete();
         debugPrint('Deleted cached audio for song $songId');
@@ -122,7 +119,6 @@ class AudioCacheService {
   }
 
   Future<void> clearCache() async {
-    _inactivityTimer?.cancel();
     final dir = await _getCacheDir();
     if (await dir.exists()) {
       await dir.delete(recursive: true);
@@ -132,6 +128,6 @@ class AudioCacheService {
   }
 
   void dispose() {
-    _inactivityTimer?.cancel();
+    // No-op since inactivity timer is removed.
   }
 }

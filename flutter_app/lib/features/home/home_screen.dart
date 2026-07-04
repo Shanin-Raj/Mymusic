@@ -3,11 +3,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme_provider.dart';
 import '../../services/api_service.dart';
 import '../../providers/audio_provider.dart';
-import '../../providers/download_provider.dart';
 import '../../widgets/recent_plays_chip.dart';
 import '../../core/constants.dart';
 import '../../features/player/settings_screen.dart';
-import '../../services/offline_service.dart';
 import '../../widgets/offline_banner.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -216,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 140,
                       height: 140,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         width: 140,
                         height: 140,
                         color: MyColors.cardColor,

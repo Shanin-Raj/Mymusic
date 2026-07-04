@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:audio_service/audio_service.dart';
 import 'sync_client.dart';
 import 'api_service.dart';
 import '../providers/audio_provider.dart';
@@ -14,9 +13,9 @@ class AudioController {
   Timer? _driftTimer;
   AudioProvider? _audioProvider;
 
-  // Track the room playback state for drift correction
-  int? _playStartServerTime;
-  int? _playStartPositionMs;
+  // Track the room playback state for drift correction (currently unused)
+  // int? _playStartServerTime;
+  // int? _playStartPositionMs;
 
   AudioController._internal() {
     _syncSubscription = SyncClient.instance.executeStream.listen(_handleSyncExecute);
@@ -103,8 +102,8 @@ class AudioController {
           provider.isSyncing = true;
           provider.play();
           provider.isSyncing = false;
-          _playStartServerTime = targetServerTime;
-          _playStartPositionMs = positionMs;
+          // _playStartServerTime = targetServerTime;
+          // _playStartPositionMs = positionMs;
           _startDriftCorrection(provider);
         });
       } else {
@@ -115,8 +114,8 @@ class AudioController {
         provider.seek(Duration(milliseconds: adjustedPositionMs)).then((_) {
           provider.play();
           provider.isSyncing = false;
-          _playStartServerTime = targetServerTime;
-          _playStartPositionMs = positionMs;
+          // _playStartServerTime = targetServerTime;
+          // _playStartPositionMs = positionMs;
           _startDriftCorrection(provider);
         });
       }
@@ -124,18 +123,8 @@ class AudioController {
   }
 
   void _startDriftCorrection(AudioProvider provider) {
-    _driftTimer?.cancel();
-    _driftTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (!provider.isPlaying) return;
-      if (_playStartServerTime == null || _playStartPositionMs == null) return;
-
-      final currentServerTime = SyncClient.instance.getServerTime();
-      final expectedPositionMs = _playStartPositionMs! + (currentServerTime - _playStartServerTime!);
-      
-      // We can't directly access the player position from AudioProvider,
-      // so drift correction in the unified model is limited.
-      // The initial sync + seek should be sufficient for most cases.
-    });
+    // Drift correction is currently disabled in the unified model.
+    // Initial sync + seek is sufficient for most cases.
   }
 
   // --- Methods for the UI to trigger actions ---

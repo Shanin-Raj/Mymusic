@@ -79,7 +79,7 @@ class DownloadsScreen extends StatelessWidget {
             style: TextStyle(color: subColor, fontSize: 13, fontWeight: FontWeight.w500),
           ),
           const SizedBox(width: 16),
-          Container(width: 1, height: 14, color: subColor.withOpacity(0.3)),
+          Container(width: 1, height: 14, color: subColor.withValues(alpha: 0.3)),
           const SizedBox(width: 16),
           Text(
             '$count song${count == 1 ? "" : "s"}',
@@ -95,7 +95,7 @@ class DownloadsScreen extends StatelessWidget {
       key: Key(song.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.redAccent.withOpacity(0.2),
+        color: Colors.redAccent.withValues(alpha: 0.2),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete, color: Colors.redAccent),
@@ -137,7 +137,7 @@ class DownloadsScreen extends StatelessWidget {
                   child: Image.network(
                     ApiService.getImageUrl(song.image),
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: MyColors.cardColor,
                       child: const Icon(Icons.music_note, color: MyColors.mutedGrey, size: 18),
                     ),
@@ -188,7 +188,7 @@ class DownloadsScreen extends StatelessWidget {
           Icon(
             Icons.download_outlined,
             size: 64,
-            color: subColor.withOpacity(0.5),
+            color: subColor.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(

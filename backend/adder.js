@@ -12,13 +12,13 @@ function getYTMetadata(url) {
     console.log('📡 Extracting metadata from YouTube...');
     
     // Attempt 1: Run yt-dlp directly
-    let result = spawnSync('yt-dlp', ['--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', '--js-runtimes', 'node', '--', url], { encoding: 'utf8' });
+    let result = spawnSync('yt-dlp', ['--print', '%(title)s|%(uploader)s|%(thumbnail)s|%(duration)s', '--no-playlist', '--js-runtimes', 'node', '--', url], { encoding: 'utf8' });
     
     // Fallback: If direct execution failed, run python -m yt_dlp
     if (result.error || result.status !== 0) {
         console.log('⚠️ yt-dlp direct execution failed, trying python fallback...');
         const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-        const args = [ '-m', 'yt_dlp', '--print', '%(title)s|%(uploader)s|%(thumbnail)s', '--no-playlist', '--js-runtimes', 'node', '--', url ];
+        const args = [ '-m', 'yt_dlp', '--print', '%(title)s|%(uploader)s|%(thumbnail)s|%(duration)s', '--no-playlist', '--js-runtimes', 'node', '--', url ];
         result = spawnSync(pythonCmd, args, { encoding: 'utf8' });
     }
 
@@ -26,8 +26,12 @@ function getYTMetadata(url) {
         const lines = result.stdout.split('\n');
         const metaLine = lines.find(l => l.includes('|'));
         if (metaLine) {
-            const [name, artist, image] = metaLine.trim().split('|');
-            return { name, artist, image };
+            const parts = metaLine.trim().split('|');
+            const name = parts[0];
+            const artist = parts[1];
+            const image = parts[2];
+            const durationSecs = parts.length > 3 ? parseFloat(parts[3]) : 0;
+            return { name, artist, image, duration_ms: isNaN(durationSecs) ? 0 : Math.floor(durationSecs * 1000) };
         }
     }
     return null;
@@ -38,6 +42,7 @@ async function addSong(data) {
     let image = null;
     let directUrl = null;
     let spotifyId = null;
+    let duration_ms = 0;
 
     console.log(`📡 Processing addition request:`, data);
 
@@ -53,6 +58,7 @@ async function addSong(data) {
                 artist = t.artist;
                 image = t.image;
                 spotifyId = t.id;
+                duration_ms = t.duration_ms || 0;
             } 
             else if (url.includes('youtube.com/') || url.includes('youtu.be/')) {
                 console.log('🔴 Detected YouTube Link');
@@ -62,6 +68,7 @@ async function addSong(data) {
                     name = meta.name;
                     artist = meta.artist;
                     image = meta.image;
+                    duration_ms = meta.duration_ms || 0;
                 } else {
                     throw new Error('Could not extract metadata from YouTube link');
                 }
@@ -87,7 +94,8 @@ async function addSong(data) {
             name: name.trim(),
             artist: artist.trim(),
             album: 'Synced Addition',
-            image: image || null
+            image: image || null,
+            duration_ms: duration_ms
         };
 
         console.log(`⏳ Downloading: ${track.name} by ${track.artist}`);

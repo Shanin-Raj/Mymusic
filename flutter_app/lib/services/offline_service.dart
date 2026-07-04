@@ -84,7 +84,7 @@ class OfflineService {
   }) async {
     final dir = await _getDownloadsDir();
     final tempFile = File('${dir.path}/$songId.tmp');
-    final finalFile = File('${dir.path}/$songId');
+    final finalFile = File('${dir.path}/$songId.m4a');
 
     final client = http.Client();
     try {
@@ -148,7 +148,7 @@ class OfflineService {
   Future<void> removeSong(String songId) async {
     try {
       final dir = await _getDownloadsDir();
-      final file = File('${dir.path}/$songId');
+      final file = File('${dir.path}/$songId.m4a');
       if (await file.exists()) {
         await file.delete();
       }
@@ -177,9 +177,16 @@ class OfflineService {
     try {
       final metadata = OfflineSongMetadata.fromJson(jsonDecode(data as String));
       final file = File(metadata.filePath);
+      
+      // Fallback check for migrated file names
+      final migratedFile = File('${metadata.filePath}.m4a');
+      
       if (file.existsSync()) {
         return file.path;
+      } else if (migratedFile.existsSync()) {
+        return migratedFile.path;
       }
+      
       _box.delete(songId);
       return null;
     } catch (_) {
