@@ -457,12 +457,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 song: song,
                 onTap: () => audioProvider.playSong(song, _songs),
                 onRemove: () async {
+                  final songIndex = _songs.indexOf(song);
+                  if (songIndex != -1) {
+                    setState(() {
+                      _songs = List.from(_songs)..removeAt(songIndex);
+                    });
+                  }
+
                   final success = await ApiService.deleteSong(songId);
-                  if (success) {
-                    _loadData(forceRefresh: true);
+                  if (!success) {
+                    if (songIndex != -1) {
+                      setState(() {
+                        _songs = List.from(_songs)..insert(songIndex, song);
+                      });
+                    }
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Permanently deleted "${song['name'] ?? 'Unknown'}"')),
+                        SnackBar(
+                          content: Text('Failed to delete "${song['name'] ?? 'Unknown'}" from cloud'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Permanently deleted "${song['name'] ?? 'Unknown'}"'),
+                          duration: const Duration(seconds: 1),
+                        ),
                       );
                     }
                   }
@@ -559,12 +582,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 showHeart: true,
                 onTap: () => audioProvider.playSong(song, likedSongs),
                 onRemove: () async {
+                  final songIndex = _songs.indexOf(song);
+                  if (songIndex != -1) {
+                    setState(() {
+                      _songs = List.from(_songs)..removeAt(songIndex);
+                    });
+                  }
+
                   final success = await ApiService.deleteSong(songId);
-                  if (success) {
-                    _loadData(forceRefresh: true);
+                  if (!success) {
+                    if (songIndex != -1) {
+                      setState(() {
+                        _songs = List.from(_songs)..insert(songIndex, song);
+                      });
+                    }
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Permanently deleted "${song['name'] ?? 'Unknown'}"')),
+                        SnackBar(
+                          content: Text('Failed to delete "${song['name'] ?? 'Unknown'}" from cloud'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Permanently deleted "${song['name'] ?? 'Unknown'}"'),
+                          duration: const Duration(seconds: 1),
+                        ),
                       );
                     }
                   }

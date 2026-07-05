@@ -406,13 +406,35 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   showDownload: true,
                   onTap: () => audioProvider.playSong(song, songs),
                   onRemove: () async {
+                    final songIndex = songs.indexOf(song);
+                    if (songIndex != -1) {
+                      setState(() {
+                        final updatedSongs = List.from(songs)..removeAt(songIndex);
+                        _playlistDetail?['songs'] = updatedSongs;
+                      });
+                    }
+
                     final success = await ApiService.removeSongFromPlaylist(widget.playlistId, songId);
-                    if (success) {
-                      await _loadDetails();
+                    if (!success) {
+                      if (songIndex != -1) {
+                        setState(() {
+                          final rolledBackSongs = List.from(_playlistDetail?['songs'] as List? ?? [])..insert(songIndex, song);
+                          _playlistDetail?['songs'] = rolledBackSongs;
+                        });
+                      }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Removed "${song['name']}" from playlist'),
+                            content: Text('Failed to remove "${song['name'] ?? 'Unknown'}" from playlist'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Removed "${song['name'] ?? 'Unknown'}" from playlist'),
                             duration: const Duration(seconds: 1),
                           ),
                         );
