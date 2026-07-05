@@ -18,6 +18,7 @@ class SongTile extends StatelessWidget {
     this.showHeart = false,
     this.showDownload = false,
     this.onRemove,
+    this.confirmRemove,
   });
 
   final String title;
@@ -30,6 +31,7 @@ class SongTile extends StatelessWidget {
   final bool showHeart;
   final bool showDownload;
   final VoidCallback? onRemove;
+  final Future<bool?> Function(DismissDirection)? confirmRemove;
 
   void _showAddToPlaylistSheet(BuildContext context, Map<String, dynamic> targetSong) {
     showModalBottomSheet(
@@ -125,7 +127,7 @@ class SongTile extends StatelessWidget {
     final songId = song != null ? (song!['id'] ?? song!['_id'] ?? '').toString() : '';
     final isLiked = audioProvider.isLiked(songId);
 
-    return InkWell(
+    Widget tile = InkWell(
       onTap: onTap,
       splashColor: MyColors.greenColor.withValues(alpha: 0.08),
       highlightColor: Colors.transparent,
@@ -270,8 +272,6 @@ class SongTile extends StatelessWidget {
                       ),
                     );
                   }
-                } else if (value == 'remove') {
-                  if (onRemove != null) onRemove!();
                 }
               },
               itemBuilder: (context) {
@@ -321,20 +321,6 @@ class SongTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (onRemove != null)
-                    const PopupMenuItem<String>(
-                      value: 'remove',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                          SizedBox(width: 10),
-                          Text(
-                            'Remove from Playlist',
-                            style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
                 ];
               },
             ),
@@ -342,5 +328,25 @@ class SongTile extends StatelessWidget {
         ),
       ),
     );
+
+    if (onRemove != null) {
+      return Dismissible(
+        key: Key(songId.isNotEmpty ? songId : UniqueKey().toString()),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          color: Colors.redAccent,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Icon(Icons.delete_outline, color: Colors.white),
+        ),
+        confirmDismiss: confirmRemove,
+        onDismissed: (direction) {
+          onRemove!();
+        },
+        child: tile,
+      );
+    }
+
+    return tile;
   }
 }

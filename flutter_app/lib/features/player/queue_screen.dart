@@ -28,7 +28,7 @@ class QueueScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = audioProvider.queue[index];
           final isCurrent = audioProvider.currentSong?.id == item.id;
-          return ListTile(
+          Widget tile = ListTile(
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: Stack(
@@ -67,23 +67,32 @@ class QueueScreen extends StatelessWidget {
             subtitle: Text(item.artist ?? '', style: const TextStyle(color: Colors.grey)),
             trailing: isCurrent 
                 ? const Icon(Icons.bar_chart, color: Colors.green)
-                : IconButton(
-                    icon: Icon(
-                      Icons.remove_circle_outline, 
-                      color: isDark ? Colors.white54 : AppColors.mutedIconColor(context),
-                      size: 22,
-                    ),
-                    onPressed: () {
-                      audioProvider.removeFromQueueAt(index);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Removed "${item.title}" from queue'),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                  ),
+                : null,
           );
+          
+          if (!isCurrent) {
+            return Dismissible(
+              key: Key(item.id + index.toString()),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                color: Colors.redAccent,
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              onDismissed: (direction) {
+                audioProvider.removeFromQueueAt(index);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Removed "${item.title}" from queue'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: tile,
+            );
+          }
+          return tile;
         },
       ),
     );

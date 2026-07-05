@@ -2,6 +2,24 @@ const { Server } = require('socket.io');
 
 const activeRooms = new Map();
 
+function cancelCleanupTimer(room) {
+    if (room.cleanupTimer) {
+        clearTimeout(room.cleanupTimer);
+        room.cleanupTimer = null;
+        console.log(`⏱️ Cleanup timer cancelled for room: ${room.roomId}`);
+    }
+}
+
+function startCleanupTimer(room) {
+    if (!room.cleanupTimer) {
+        console.log(`⏱️ Room ${room.roomId} empty. Starting 3 min cleanup timer.`);
+        room.cleanupTimer = setTimeout(() => {
+            activeRooms.delete(room.roomId);
+            console.log(`🗑️ Room deleted due to inactivity: ${room.roomId}`);
+        }, 3 * 60 * 1000);
+    }
+}
+
 function initSyncEngine(server, admin) {
     const io = new Server(server, {
         cors: {
@@ -38,13 +56,13 @@ function initSyncEngine(server, admin) {
         // Create Room
         socket.on('create_room', (...args) => {
             const callback = args.length > 0 && typeof args[args.length - 1] === 'function' ? args.pop() : null;
-            
+
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let roomId = '';
             for (let i = 0; i < 5; i++) {
                 roomId += chars.charAt(Math.floor(Math.random() * chars.length));
             }
-            
+
             activeRooms.set(roomId, {
                 roomId,
                 hostId: socket.user.uid,
@@ -54,7 +72,8 @@ function initSyncEngine(server, admin) {
                 playbackState: 'PAUSED', // PAUSED or PLAYING
                 targetTimestamp: null,
                 position: 0,
-                eventLog: []
+                eventLog: [],
+                cleanupTimer: null
             });
 
             socket.join(roomId);
@@ -71,15 +90,16 @@ function initSyncEngine(server, admin) {
                 if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
                 return;
             }
-            
+
             const room = activeRooms.get(roomId);
             room.users.add(socket.user.uid);
             socket.join(roomId);
-            
+            cancelCleanupTimer(room);
+
             if (typeof callback === 'function') {
                 callback({ success: true, state: getRoomState(roomId) });
             }
-            
+
             socket.to(roomId).emit('user_joined', { userId: socket.user.uid, totalUsers: room.users.size });
             console.log(`👤 User ${socket.user.uid} joined room ${roomId}`);
         });
@@ -91,7 +111,11 @@ function initSyncEngine(server, admin) {
             if (activeRooms.has(roomId)) {
                 const room = activeRooms.get(roomId);
                 room.users.delete(socket.user.uid);
-                socket.to(roomId).emit('user_left', { userId: socket.user.uid, totalUsers: room.users.size });
+                if (room.users.size === 0) {
+                    startCleanupTimer(room);
+                } else {
+                    socket.to(roomId).emit('user_left', { userId: socket.user.uid, totalUsers: room.users.size });
+                }
             }
         });
 
@@ -99,18 +123,18 @@ function initSyncEngine(server, admin) {
         socket.on('sync_intent', (data) => {
             const { roomId, type, payload } = data;
             if (!activeRooms.has(roomId)) return;
-            
+
             const room = activeRooms.get(roomId);
-            
+
             // Any user in the room can control playback
 
             const timestamp = Date.now();
-            
+
             if (type === 'PLAY_INTENT') {
                 room.playbackState = 'PLAYING';
                 room.position = payload.position || room.position;
                 room.targetTimestamp = timestamp + 500; // 500ms latency comp
-                
+
                 const event = {
                     type: 'PLAY_EXECUTE',
                     targetTimestamp: room.targetTimestamp,
@@ -119,12 +143,12 @@ function initSyncEngine(server, admin) {
                 };
                 room.eventLog.push(event);
                 io.to(roomId).emit('sync_execute', event);
-                
+
             } else if (type === 'PAUSE_INTENT') {
                 room.playbackState = 'PAUSED';
                 room.position = payload.position || room.position;
                 room.targetTimestamp = null;
-                
+
                 const event = {
                     type: 'PAUSE_EXECUTE',
                     position: room.position,
@@ -132,7 +156,7 @@ function initSyncEngine(server, admin) {
                 };
                 room.eventLog.push(event);
                 io.to(roomId).emit('sync_execute', event);
-                
+
             } else if (type === 'SEEK_INTENT') {
                 room.position = payload.position;
                 if (room.playbackState === 'PLAYING') {
@@ -160,7 +184,7 @@ function initSyncEngine(server, admin) {
                 room.position = 0;
                 room.playbackState = 'PLAYING';
                 room.targetTimestamp = timestamp + 1000; // 1s buffer for track change
-                
+
                 const event = {
                     type: 'TRACK_CHANGE_EXECUTE',
                     songId: room.currentSongId,
@@ -179,14 +203,9 @@ function initSyncEngine(server, admin) {
                     const room = activeRooms.get(roomId);
                     room.users.delete(socket.user.uid);
                     if (room.users.size === 0) {
-                        activeRooms.delete(roomId);
-                        console.log(`🗑️ Room deleted: ${roomId}`);
+                        startCleanupTimer(room);
                     } else {
                         io.to(roomId).emit('user_left', { userId: socket.user.uid, totalUsers: room.users.size });
-                        if (room.hostId === socket.user.uid) {
-                            io.to(roomId).emit('room_ended');
-                            activeRooms.delete(roomId);
-                        }
                     }
                 }
             }

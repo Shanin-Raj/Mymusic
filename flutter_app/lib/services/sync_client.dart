@@ -45,6 +45,14 @@ class SyncClient {
       debugPrint('SyncClient: Connected to server');
       _isConnected = true;
       _performClockSync();
+      
+      // Auto-rejoin if we were in a room before disconnecting
+      if (_currentRoomId != null) {
+        joinRoom(_currentRoomId!).catchError((e) {
+          debugPrint('SyncClient: Failed to auto-rejoin room - $e');
+        });
+      }
+
       if (!connectCompleter.isCompleted) {
         connectCompleter.complete();
       }

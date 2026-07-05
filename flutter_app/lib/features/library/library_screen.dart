@@ -456,6 +456,33 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 isPlaying: audioProvider.isPlaying,
                 song: song,
                 onTap: () => audioProvider.playSong(song, _songs),
+                onRemove: () async {
+                  final success = await ApiService.deleteSong(songId);
+                  if (success) {
+                    _loadData(forceRefresh: true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Permanently deleted "${song['name'] ?? 'Unknown'}"')),
+                      );
+                    }
+                  }
+                },
+                confirmRemove: (direction) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete from Cloud'),
+                      content: const Text('Are you sure you want to permanently delete this song from the cloud? This action cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true), 
+                          child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
             childCount: _songs.length,
@@ -531,6 +558,33 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 song: song,
                 showHeart: true,
                 onTap: () => audioProvider.playSong(song, likedSongs),
+                onRemove: () async {
+                  final success = await ApiService.deleteSong(songId);
+                  if (success) {
+                    _loadData(forceRefresh: true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Permanently deleted "${song['name'] ?? 'Unknown'}"')),
+                      );
+                    }
+                  }
+                },
+                confirmRemove: (direction) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete from Cloud'),
+                      content: const Text('Are you sure you want to permanently delete this song from the cloud? This action cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true), 
+                          child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
             childCount: likedSongs.length,
