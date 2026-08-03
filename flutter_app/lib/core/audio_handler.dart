@@ -6,6 +6,8 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter_app/services/api_service.dart';
 import 'package:flutter_app/services/audio_cache_service.dart';
 import 'package:flutter_app/services/offline_service.dart';
+import 'package:flutter_app/services/sync_client.dart';
+import 'package:flutter_app/services/audio_controller.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final _player = AudioPlayer();
@@ -125,7 +127,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       // Handle track completion
       _player.processingStateStream.listen((state) {
         if (state == ProcessingState.completed) {
-          skipToNext();
+          if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null) {
+            debugPrint('🎵 Track completed in room mode -> Triggering nextTrack');
+            AudioController.instance.nextTrack();
+          } else {
+            skipToNext();
+          }
         }
       }, onError: (Object e, StackTrace st) {
         debugPrint('🚨 processingStateStream error: $e');

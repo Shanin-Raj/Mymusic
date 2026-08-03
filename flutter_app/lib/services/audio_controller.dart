@@ -19,11 +19,21 @@ class AudioController {
 
   AudioController._internal() {
     _syncSubscription = SyncClient.instance.executeStream.listen(_handleSyncExecute);
+    SyncClient.instance.roomStateStream.listen((roomState) {
+      if (roomState != null && _audioProvider != null) {
+        _startDriftCorrection(_audioProvider!);
+      } else if (roomState == null) {
+        _driftTimer?.cancel();
+      }
+    });
   }
 
   /// Must be called after AudioProvider is initialized (e.g., in main.dart)
   void setAudioProvider(AudioProvider provider) {
     _audioProvider = provider;
+    if (SyncClient.instance.roomState != null) {
+      _startDriftCorrection(provider);
+    }
   }
 
   void dispose() {
@@ -135,8 +145,60 @@ class AudioController {
   }
 
   void _startDriftCorrection(AudioProvider provider) {
-    // Drift correction is currently disabled in the unified model.
-    // Initial sync + seek is sufficient for most cases.
+    _driftTimer?.cancel();
+    _driftTimer = Timer.periodic(const Duration(seconds: 4), (timer) async {
+      final roomState = SyncClient.instance.roomState;
+      if (roomState == null || !SyncClient.instance.isConnected) {
+        timer.cancel();
+        return;
+      }
+
+      final playbackState = roomState['playbackState'] as String?;
+      final targetTimestamp = roomState['targetTimestamp'] as int?;
+      final startPosition = roomState['position'] as int? ?? 0;
+      final currentSongId = roomState['currentSongId'] as String?;
+
+      if (playbackState == 'PLAYING' && targetTimestamp != null) {
+        final currentServerTime = SyncClient.instance.getServerTime();
+        final expectedPosMs = startPosition + (currentServerTime - targetTimestamp);
+
+        // 1. Ensure current track is loaded into provider
+        if (currentSongId != null && provider.currentSong?.id != currentSongId && !provider.isSyncing) {
+          debugPrint('🔄 Room Sync Watchdog: Loading missing track $currentSongId');
+          try {
+            final songData = await ApiService.fetchSongDetail(currentSongId);
+            provider.isSyncing = true;
+            await provider.playSong(songData, [songData]);
+            provider.isSyncing = false;
+          } catch (e) {
+            debugPrint('Error loading track in watchdog: $e');
+            return;
+          }
+        }
+
+        final localPosMs = provider.playbackState?.position.inMilliseconds ?? 0;
+        final isPlayingLocal = provider.isPlaying;
+        final diff = (localPosMs - expectedPosMs).abs();
+
+        // 2. Re-sync if local player was interrupted (e.g. WhatsApp voice note) or desynced > 2000ms
+        if ((!isPlayingLocal || diff > 2000) && !provider.isSyncing) {
+          debugPrint('🔄 Room Sync Watchdog: Re-syncing local player to expected position: ${expectedPosMs}ms');
+          provider.isSyncing = true;
+          await provider.seek(Duration(milliseconds: expectedPosMs > 0 ? expectedPosMs : 0));
+          await provider.play();
+          provider.isSyncing = false;
+        }
+      } else if (playbackState == 'PAUSED') {
+        if (provider.isPlaying && !provider.isSyncing) {
+          debugPrint('🔄 Room Sync Watchdog: Server is PAUSED, pausing local player.');
+          provider.isSyncing = true;
+          await provider.pause();
+          final pos = roomState['position'] as int? ?? 0;
+          await provider.seek(Duration(milliseconds: pos));
+          provider.isSyncing = false;
+        }
+      }
+    });
   }
 
   // --- Methods for the UI to trigger actions ---
