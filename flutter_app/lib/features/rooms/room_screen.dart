@@ -63,22 +63,28 @@ class _RoomScreenState extends State<RoomScreen> {
     final bg = isDark ? MyColors.surfaceDark : MyColors.offWhite;
     final textColor = isDark ? Colors.white : MyColors.darkText;
 
+    final canPop = Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: bg,
-      bottomNavigationBar: const SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [MiniPlayer()],
-        ),
-      ),
+      bottomNavigationBar: canPop
+          ? const SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [MiniPlayer()],
+              ),
+            )
+          : null,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text('Listening Room', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: canPop
+            ? IconButton(
+                icon: Icon(Icons.arrow_back, color: textColor),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
       ),
       body: StreamBuilder<Map<String, dynamic>?>(
         stream: SyncClient.instance.roomStateStream,

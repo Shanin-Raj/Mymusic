@@ -63,9 +63,21 @@ class AudioController {
       }
     } else if (type == 'PLAY_EXECUTE') {
       final targetTimestamp = event['targetTimestamp'] as int?;
-      final position = event['position'] as int?;
-      
-      if (targetTimestamp != null && position != null) {
+      final position = event['position'] as int? ?? 0;
+      final songId = event['songId'] as String? ?? SyncClient.instance.roomState?['currentSongId'] as String?;
+
+      if (songId != null && provider.currentSong?.id != songId) {
+        try {
+          final songData = await ApiService.fetchSongDetail(songId);
+          provider.isSyncing = true;
+          await provider.playSong(songData, [songData]);
+          provider.isSyncing = false;
+        } catch (e) {
+          debugPrint('AudioController: Failed to load track for play - $e');
+        }
+      }
+
+      if (targetTimestamp != null) {
         _schedulePlayback(provider, targetTimestamp, position);
       }
     } else if (type == 'PAUSE_EXECUTE') {
@@ -130,6 +142,21 @@ class AudioController {
   // --- Methods for the UI to trigger actions ---
 
   void togglePlayPause(AudioProvider provider) {
+    final roomState = SyncClient.instance.roomState;
+    final currentSongId = roomState?['currentSongId'] as String?;
+    final queue = roomState?['queue'] as List?;
+    final currentIndex = roomState?['currentIndex'] as int? ?? 0;
+
+    // If no song is loaded in provider but room has a currentSongId
+    if (!provider.isPlaying && currentSongId != null && provider.currentSong?.id != currentSongId) {
+      final trackUrl = (queue != null && currentIndex < queue.length)
+          ? (queue[currentIndex]['trackUrl'] ?? ApiService.getStreamUrl(currentSongId))
+          : ApiService.getStreamUrl(currentSongId);
+      
+      changeTrack(currentSongId, trackUrl, currentIndex: currentIndex);
+      return;
+    }
+
     final currentPositionMs = provider.playbackState?.position.inMilliseconds ?? 0;
     if (provider.isPlaying) {
       SyncClient.instance.sendIntent('PAUSE_INTENT', {

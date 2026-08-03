@@ -139,6 +139,12 @@ function initSyncEngine(server, admin) {
             const timestamp = Date.now();
 
             if (type === 'PLAY_INTENT') {
+                if (!room.currentSongId && room.queue && room.queue.length > 0) {
+                    room.currentIndex = 0;
+                    const first = room.queue[0];
+                    room.currentSongId = first.id || first._id;
+                    room.currentTrackUrl = first.trackUrl;
+                }
                 room.playbackState = 'PLAYING';
                 room.position = payload?.position || room.position;
                 room.targetTimestamp = timestamp + 500; // 500ms latency comp
@@ -147,6 +153,8 @@ function initSyncEngine(server, admin) {
                     type: 'PLAY_EXECUTE',
                     targetTimestamp: room.targetTimestamp,
                     position: room.position,
+                    songId: room.currentSongId,
+                    trackUrl: room.currentTrackUrl,
                     serverTime: timestamp
                 };
                 room.eventLog.push(event);
