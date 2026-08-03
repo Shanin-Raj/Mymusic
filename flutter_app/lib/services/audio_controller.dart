@@ -148,10 +148,31 @@ class AudioController {
     });
   }
 
-  void changeTrack(String songId, String trackUrl) {
+  void changeTrack(String songId, String trackUrl, {int? currentIndex}) {
     SyncClient.instance.sendIntent('CHANGE_TRACK_INTENT', {
       'songId': songId,
       'trackUrl': trackUrl,
+      if (currentIndex case final index?) 'currentIndex': index,
     });
+  }
+
+  void nextTrack() {
+    SyncClient.instance.nextTrack();
+  }
+
+  void prevTrack() {
+    SyncClient.instance.prevTrack();
+  }
+
+  void addToQueue(Map<String, dynamic> song) {
+    SyncClient.instance.addToQueue(song);
+  }
+
+  void removeFromQueue(int index) {
+    SyncClient.instance.removeFromQueue(index);
+  }
+
+  void reorderQueue(int oldIndex, int newIndex) {
+    SyncClient.instance.reorderQueue(oldIndex, newIndex);
   }
 }

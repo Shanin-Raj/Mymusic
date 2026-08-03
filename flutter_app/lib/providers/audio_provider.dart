@@ -123,12 +123,7 @@ class AudioProvider with ChangeNotifier {
 
   Future<void> skipToNext() async {
     if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
-      final queue = audioHandler.queue.value;
-      final currentIndex = playbackState?.queueIndex ?? 0;
-      if (currentIndex + 1 < queue.length) {
-        final nextItem = queue[currentIndex + 1];
-        AudioController.instance.changeTrack(nextItem.id, ApiService.getStreamUrl(nextItem.id));
-      }
+      AudioController.instance.nextTrack();
       return;
     }
     await audioHandler.skipToNext();
@@ -136,12 +131,7 @@ class AudioProvider with ChangeNotifier {
 
   Future<void> skipToPrevious() async {
     if (SyncClient.instance.isConnected && SyncClient.instance.roomState != null && !isSyncing) {
-      final queue = audioHandler.queue.value;
-      final currentIndex = playbackState?.queueIndex ?? 0;
-      if (currentIndex - 1 >= 0) {
-        final prevItem = queue[currentIndex - 1];
-        AudioController.instance.changeTrack(prevItem.id, ApiService.getStreamUrl(prevItem.id));
-      }
+      AudioController.instance.prevTrack();
       return;
     }
     await audioHandler.skipToPrevious();

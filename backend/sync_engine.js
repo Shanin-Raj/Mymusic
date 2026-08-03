@@ -56,6 +56,7 @@ function initSyncEngine(server, admin) {
         // Create Room
         socket.on('create_room', (...args) => {
             const callback = args.length > 0 && typeof args[args.length - 1] === 'function' ? args.pop() : null;
+            const payload = args.length > 0 ? args[0] : null;
 
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let roomId = '';
@@ -63,12 +64,19 @@ function initSyncEngine(server, admin) {
                 roomId += chars.charAt(Math.floor(Math.random() * chars.length));
             }
 
+            const initialQueue = (payload && Array.isArray(payload.queue)) ? payload.queue : (payload && Array.isArray(payload)) ? payload : [];
+            const firstTrack = initialQueue.length > 0 ? initialQueue[0] : null;
+            const currentSongId = firstTrack ? (firstTrack.id || firstTrack._id || null) : null;
+            const currentTrackUrl = firstTrack ? (firstTrack.trackUrl || null) : null;
+
             activeRooms.set(roomId, {
                 roomId,
                 hostId: socket.user.uid,
                 users: new Set([socket.user.uid]),
-                currentTrackUrl: null,
-                currentSongId: null,
+                queue: initialQueue,
+                currentIndex: 0,
+                currentTrackUrl,
+                currentSongId,
                 playbackState: 'PAUSED', // PAUSED or PLAYING
                 targetTimestamp: null,
                 position: 0,
@@ -80,7 +88,7 @@ function initSyncEngine(server, admin) {
             if (typeof callback === 'function') {
                 callback({ success: true, roomId, state: getRoomState(roomId) });
             }
-            console.log(`🏠 Room created: ${roomId} by ${socket.user.uid}`);
+            console.log(`🏠 Room created: ${roomId} by ${socket.user.uid} with ${initialQueue.length} songs in queue`);
         });
 
         // Join Room
@@ -132,7 +140,7 @@ function initSyncEngine(server, admin) {
 
             if (type === 'PLAY_INTENT') {
                 room.playbackState = 'PLAYING';
-                room.position = payload.position || room.position;
+                room.position = payload?.position || room.position;
                 room.targetTimestamp = timestamp + 500; // 500ms latency comp
 
                 const event = {
@@ -146,7 +154,7 @@ function initSyncEngine(server, admin) {
 
             } else if (type === 'PAUSE_INTENT') {
                 room.playbackState = 'PAUSED';
-                room.position = payload.position || room.position;
+                room.position = payload?.position || room.position;
                 room.targetTimestamp = null;
 
                 const event = {
@@ -185,15 +193,190 @@ function initSyncEngine(server, admin) {
                 room.playbackState = 'PLAYING';
                 room.targetTimestamp = timestamp + 1000; // 1s buffer for track change
 
+                // If song index is specified in payload, update currentIndex
+                if (typeof payload.currentIndex === 'number') {
+                    room.currentIndex = payload.currentIndex;
+                } else if (room.queue && room.queue.length > 0) {
+                    const idx = room.queue.findIndex(s => (s.id || s._id) === payload.songId);
+                    if (idx !== -1) room.currentIndex = idx;
+                }
+
                 const event = {
                     type: 'TRACK_CHANGE_EXECUTE',
                     songId: room.currentSongId,
                     trackUrl: room.currentTrackUrl,
+                    currentIndex: room.currentIndex,
+                    queue: room.queue,
                     targetTimestamp: room.targetTimestamp,
                     serverTime: timestamp
                 };
                 room.eventLog.push(event);
                 io.to(roomId).emit('sync_execute', event);
+
+            } else if (type === 'UPDATE_QUEUE_INTENT') {
+                if (payload && Array.isArray(payload.queue)) {
+                    room.queue = payload.queue;
+                }
+                if (payload && typeof payload.currentIndex === 'number') {
+                    room.currentIndex = payload.currentIndex;
+                }
+                if (room.queue.length > 0 && room.currentIndex < room.queue.length) {
+                    const currentSong = room.queue[room.currentIndex];
+                    room.currentSongId = currentSong.id || currentSong._id;
+                    room.currentTrackUrl = currentSong.trackUrl || room.currentTrackUrl;
+                }
+                const event = {
+                    type: 'QUEUE_UPDATE_EXECUTE',
+                    queue: room.queue,
+                    currentIndex: room.currentIndex,
+                    currentSongId: room.currentSongId,
+                    currentTrackUrl: room.currentTrackUrl,
+                    serverTime: timestamp
+                };
+                room.eventLog.push(event);
+                io.to(roomId).emit('sync_execute', event);
+
+            } else if (type === 'ADD_TO_QUEUE_INTENT') {
+                const newItems = payload && Array.isArray(payload.songs) ? payload.songs : (payload && payload.song ? [payload.song] : []);
+                room.queue.push(...newItems);
+                if (room.queue.length > 0 && (room.currentSongId == null || room.currentTrackUrl == null)) {
+                    room.currentIndex = 0;
+                    const first = room.queue[0];
+                    room.currentSongId = first.id || first._id;
+                    room.currentTrackUrl = first.trackUrl;
+                }
+                const event = {
+                    type: 'QUEUE_UPDATE_EXECUTE',
+                    queue: room.queue,
+                    currentIndex: room.currentIndex,
+                    currentSongId: room.currentSongId,
+                    currentTrackUrl: room.currentTrackUrl,
+                    serverTime: timestamp
+                };
+                room.eventLog.push(event);
+                io.to(roomId).emit('sync_execute', event);
+
+            } else if (type === 'REMOVE_FROM_QUEUE_INTENT') {
+                const removeIdx = payload ? payload.index : -1;
+                if (typeof removeIdx === 'number' && removeIdx >= 0 && removeIdx < room.queue.length) {
+                    room.queue.splice(removeIdx, 1);
+                    if (room.currentIndex >= room.queue.length) {
+                        room.currentIndex = Math.max(0, room.queue.length - 1);
+                    }
+                    if (room.queue.length > 0) {
+                        const current = room.queue[room.currentIndex];
+                        room.currentSongId = current.id || current._id;
+                        room.currentTrackUrl = current.trackUrl;
+                    } else {
+                        room.currentSongId = null;
+                        room.currentTrackUrl = null;
+                        room.playbackState = 'PAUSED';
+                    }
+                }
+                const event = {
+                    type: 'QUEUE_UPDATE_EXECUTE',
+                    queue: room.queue,
+                    currentIndex: room.currentIndex,
+                    currentSongId: room.currentSongId,
+                    currentTrackUrl: room.currentTrackUrl,
+                    serverTime: timestamp
+                };
+                room.eventLog.push(event);
+                io.to(roomId).emit('sync_execute', event);
+
+            } else if (type === 'REORDER_QUEUE_INTENT') {
+                if (payload && Array.isArray(payload.queue)) {
+                    room.queue = payload.queue;
+                } else if (payload && typeof payload.oldIndex === 'number' && typeof payload.newIndex === 'number') {
+                    const oldIndex = payload.oldIndex;
+                    let newIndex = payload.newIndex;
+                    if (oldIndex >= 0 && oldIndex < room.queue.length && newIndex >= 0 && newIndex <= room.queue.length) {
+                        if (oldIndex < newIndex) {
+                            newIndex -= 1;
+                        }
+                        const [item] = room.queue.splice(oldIndex, 1);
+                        room.queue.splice(newIndex, 0, item);
+                    }
+                }
+                if (payload && typeof payload.currentIndex === 'number') {
+                    room.currentIndex = payload.currentIndex;
+                }
+                if (room.queue.length > 0 && room.currentIndex < room.queue.length) {
+                    const current = room.queue[room.currentIndex];
+                    room.currentSongId = current.id || current._id;
+                    room.currentTrackUrl = current.trackUrl;
+                }
+                const event = {
+                    type: 'QUEUE_UPDATE_EXECUTE',
+                    queue: room.queue,
+                    currentIndex: room.currentIndex,
+                    currentSongId: room.currentSongId,
+                    currentTrackUrl: room.currentTrackUrl,
+                    serverTime: timestamp
+                };
+                room.eventLog.push(event);
+                io.to(roomId).emit('sync_execute', event);
+
+            } else if (type === 'NEXT_TRACK_INTENT') {
+                if (room.queue && room.queue.length > 0) {
+                    const nextIndex = room.currentIndex + 1;
+                    if (nextIndex < room.queue.length) {
+                        room.currentIndex = nextIndex;
+                        const nextSong = room.queue[nextIndex];
+                        room.currentSongId = nextSong.id || nextSong._id;
+                        room.currentTrackUrl = nextSong.trackUrl || payload?.trackUrl;
+                        room.position = 0;
+                        room.playbackState = 'PLAYING';
+                        room.targetTimestamp = timestamp + 1000;
+
+                        const event = {
+                            type: 'TRACK_CHANGE_EXECUTE',
+                            songId: room.currentSongId,
+                            trackUrl: room.currentTrackUrl,
+                            currentIndex: room.currentIndex,
+                            queue: room.queue,
+                            targetTimestamp: room.targetTimestamp,
+                            serverTime: timestamp
+                        };
+                        room.eventLog.push(event);
+                        io.to(roomId).emit('sync_execute', event);
+                    } else {
+                        // End of queue reached
+                        room.playbackState = 'PAUSED';
+                        room.position = 0;
+                        const event = {
+                            type: 'PAUSE_EXECUTE',
+                            position: 0,
+                            serverTime: timestamp
+                        };
+                        room.eventLog.push(event);
+                        io.to(roomId).emit('sync_execute', event);
+                    }
+                }
+
+            } else if (type === 'PREV_TRACK_INTENT') {
+                if (room.queue && room.queue.length > 0) {
+                    const prevIndex = Math.max(0, room.currentIndex - 1);
+                    room.currentIndex = prevIndex;
+                    const prevSong = room.queue[prevIndex];
+                    room.currentSongId = prevSong.id || prevSong._id;
+                    room.currentTrackUrl = prevSong.trackUrl || payload?.trackUrl;
+                    room.position = 0;
+                    room.playbackState = 'PLAYING';
+                    room.targetTimestamp = timestamp + 1000;
+
+                    const event = {
+                        type: 'TRACK_CHANGE_EXECUTE',
+                        songId: room.currentSongId,
+                        trackUrl: room.currentTrackUrl,
+                        currentIndex: room.currentIndex,
+                        queue: room.queue,
+                        targetTimestamp: room.targetTimestamp,
+                        serverTime: timestamp
+                    };
+                    room.eventLog.push(event);
+                    io.to(roomId).emit('sync_execute', event);
+                }
             }
         });
 
@@ -218,6 +401,8 @@ function initSyncEngine(server, admin) {
         return {
             roomId: room.roomId,
             hostId: room.hostId,
+            queue: room.queue || [],
+            currentIndex: room.currentIndex || 0,
             currentSongId: room.currentSongId,
             currentTrackUrl: room.currentTrackUrl,
             playbackState: room.playbackState,

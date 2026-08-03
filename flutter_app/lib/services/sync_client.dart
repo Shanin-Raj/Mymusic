@@ -79,7 +79,23 @@ class SyncClient {
 
     _socket!.on('sync_execute', (data) {
       if (data is Map) {
-        _executeController.add(Map<String, dynamic>.from(data));
+        final map = Map<String, dynamic>.from(data);
+        if (_roomState != null) {
+          if (map.containsKey('queue')) {
+            _roomState!['queue'] = map['queue'];
+          }
+          if (map.containsKey('currentIndex')) {
+            _roomState!['currentIndex'] = map['currentIndex'];
+          }
+          if (map.containsKey('currentSongId')) {
+            _roomState!['currentSongId'] = map['currentSongId'];
+          }
+          if (map.containsKey('currentTrackUrl')) {
+            _roomState!['currentTrackUrl'] = map['currentTrackUrl'];
+          }
+          _stateController.add(_roomState);
+        }
+        _executeController.add(map);
       }
     });
 
@@ -143,7 +159,7 @@ class SyncClient {
     return DateTime.now().millisecondsSinceEpoch + _clockOffset;
   }
 
-  Future<void> createRoom() async {
+  Future<void> createRoom([List<Map<String, dynamic>>? initialQueue]) async {
     if (!_isConnected) return Future.error('Not connected to server');
     final completer = Completer<void>();
     
@@ -152,7 +168,9 @@ class SyncClient {
       if (!completer.isCompleted) completer.completeError('Connection timeout');
     });
 
-    _socket!.emitWithAck('create_room', null, ack: (data) {
+    final payload = initialQueue != null ? {'queue': initialQueue} : null;
+
+    _socket!.emitWithAck('create_room', payload, ack: (data) {
       if (completer.isCompleted) return;
       if (data is Map) {
         final parsedData = Map<String, dynamic>.from(data);
@@ -215,6 +233,30 @@ class SyncClient {
       'type': type,
       'payload': payload
     });
+  }
+
+  void addToQueue(Map<String, dynamic> song) {
+    sendIntent('ADD_TO_QUEUE_INTENT', {'song': song});
+  }
+
+  void addSongsToQueue(List<Map<String, dynamic>> songs) {
+    sendIntent('ADD_TO_QUEUE_INTENT', {'songs': songs});
+  }
+
+  void removeFromQueue(int index) {
+    sendIntent('REMOVE_FROM_QUEUE_INTENT', {'index': index});
+  }
+
+  void reorderQueue(int oldIndex, int newIndex) {
+    sendIntent('REORDER_QUEUE_INTENT', {'oldIndex': oldIndex, 'newIndex': newIndex});
+  }
+
+  void nextTrack() {
+    sendIntent('NEXT_TRACK_INTENT', {});
+  }
+
+  void prevTrack() {
+    sendIntent('PREV_TRACK_INTENT', {});
   }
 
   void disconnect() {
