@@ -3,20 +3,25 @@ const path = require('path');
 const fs = require('fs');
 
 async function downloadSong(songName, artistName, directUrl = null) {
-  const query = directUrl || `${songName} ${artistName} lyrics`;
+  const cleanSong = (songName || '').replace(/["'“”`]/g, ' ').replace(/\s+/g, ' ').trim();
+  const cleanArtist = (artistName || '').replace(/["'“”`]/g, ' ').replace(/\s+/g, ' ').trim();
+  const query = directUrl || `${cleanSong} ${cleanArtist} lyrics`;
   const outputDir = path.join(__dirname, 'downloads');
   if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir);
+    fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const fileName = `${songName.replace(/[/\\?%*:|"<>]/g, '-')}.m4a`;
+  const cleanFileName = (songName || 'song').replace(/[/\\?%*:|"<>]/g, '-').trim();
+  const fileName = `${cleanFileName}.m4a`;
   const outputPath = path.join(outputDir, fileName);
 
   const baseArgs = [
     '--extract-audio',
     '--audio-format', 'm4a',
     '--no-playlist',
-    '--js-runtimes', 'node'
+    '--js-runtimes', 'node',
+    '--extractor-args', 'youtube:player_client=ios,android,web',
+    '--no-check-certificates'
   ];
 
   const ffmpegLocation = process.env.FFMPEG_LOCATION;
