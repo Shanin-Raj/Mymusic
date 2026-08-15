@@ -8,6 +8,7 @@ import '../../providers/audio_provider.dart';
 import '../../widgets/now_playing_animation.dart';
 import '../../widgets/download_button.dart';
 import 'queue_screen.dart';
+import 'lyrics_screen.dart';
 import '../../services/api_service.dart';
 
 class NowPlayingScreen extends StatelessWidget {
@@ -293,12 +294,43 @@ class NowPlayingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Bottom row — timer + download + queue ─────────────────────────
+                // ── Bottom row — lyrics + timer + download + queue ─────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
+                      icon: Icon(
+                        audioProvider.currentLyrics != null && audioProvider.currentLyrics!.hasSynced
+                            ? Icons.lyrics
+                            : Icons.lyrics_outlined,
+                        color: audioProvider.currentLyrics != null && audioProvider.currentLyrics!.hasSynced
+                            ? (isDark ? MyColors.greenBright : MyColors.greenColor)
+                            : iconDimmedColor,
+                        size: 22,
+                      ),
+                      tooltip: 'Lyrics',
+                      onPressed: () => Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, animation, secondaryAnimation) => const LyricsScreen(),
+                          transitionsBuilder: (_, animation, secondaryAnimation, child) {
+                            return SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 1),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              )),
+                              child: child,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    IconButton(
                       icon: Icon(Icons.timer_outlined, color: iconDimmedColor, size: 22),
+                      tooltip: 'Sleep Timer',
                       onPressed: () => _showSleepTimerPicker(context, audioProvider),
                     ),
                     Builder(
@@ -315,6 +347,7 @@ class NowPlayingScreen extends StatelessWidget {
                     ),
                     IconButton(
                       icon: Icon(Icons.queue_music, color: iconDimmedColor, size: 22),
+                      tooltip: 'Queue',
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const QueueScreen()),

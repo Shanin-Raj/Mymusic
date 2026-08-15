@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import '../core/audio_handler.dart';
+import '../models/lyrics_model.dart';
 import '../services/api_service.dart';
+import '../services/lyrics_service.dart';
 import '../services/storage_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/offline_service.dart';
@@ -28,6 +30,15 @@ class AudioProvider with ChangeNotifier {
   bool _isOnline = true;
   bool get isOnline => _isOnline;
   StreamSubscription<bool>? _connectivitySubscription;
+
+  // Lyrics related
+  LyricsData? _currentLyrics;
+  LyricsData? get currentLyrics => _currentLyrics;
+  bool _isLoadingLyrics = false;
+  bool get isLoadingLyrics => _isLoadingLyrics;
+  int _activeLyricIndex = -1;
+  int get activeLyricIndex => _activeLyricIndex;
+  StreamSubscription<Duration>? _positionSubscription;
 
   // Syncing state flag
   bool isSyncing = false;
@@ -82,13 +93,25 @@ class AudioProvider with ChangeNotifier {
 
     // Listen to custom application streams that bypass Android Notification bugs
     audioHandler.appMediaItemStream.listen((item) {
+      final previousId = _currentAppMediaItem?.id;
       _currentAppMediaItem = item;
       notifyListeners();
+
+      if (item != null && item.id != previousId) {
+        _activeLyricIndex = -1;
+        fetchLyricsForCurrentSong();
+      }
     });
 
     audioHandler.appPlaybackStateStream.listen((state) {
       _currentAppPlaybackState = state;
       notifyListeners();
+    });
+
+    // Track real-time playback position for active lyric line calculation
+    _positionSubscription?.cancel();
+    _positionSubscription = audioHandler.appPositionStream.listen((position) {
+      _updateActiveLyricIndex(position);
     });
 
     // Subscribe to connectivity changes if provided
@@ -99,6 +122,75 @@ class AudioProvider with ChangeNotifier {
         notifyListeners();
       });
     }
+  }
+
+  void _updateActiveLyricIndex(Duration position) {
+    if (_currentLyrics == null || !_currentLyrics!.hasSynced || _currentLyrics!.lines.isEmpty) {
+      if (_activeLyricIndex != -1) {
+        _activeLyricIndex = -1;
+        notifyListeners();
+      }
+      return;
+    }
+
+    final lines = _currentLyrics!.lines;
+    int index = -1;
+    for (int i = 0; i < lines.length; i++) {
+      if (position >= lines[i].timestamp) {
+        index = i;
+      } else {
+        break;
+      }
+    }
+
+    if (index != _activeLyricIndex) {
+      _activeLyricIndex = index;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchLyricsForCurrentSong({bool forceRefresh = false}) async {
+    final song = _currentAppMediaItem;
+    if (song == null) {
+      _currentLyrics = null;
+      _isLoadingLyrics = false;
+      _activeLyricIndex = -1;
+      notifyListeners();
+      return;
+    }
+
+    _isLoadingLyrics = true;
+    notifyListeners();
+
+    try {
+      final lyrics = await LyricsService.instance.getLyrics(
+        song.id,
+        name: song.title,
+        artist: song.artist,
+        durationMs: song.duration?.inMilliseconds,
+        album: song.album,
+        forceRefresh: forceRefresh,
+      );
+
+      if (_currentAppMediaItem?.id == song.id) {
+        _currentLyrics = lyrics;
+        _isLoadingLyrics = false;
+        if (playbackState != null) {
+          _updateActiveLyricIndex(playbackState!.position);
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching lyrics in AudioProvider: $e');
+      if (_currentAppMediaItem?.id == song.id) {
+        _isLoadingLyrics = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> seekToLyric(Duration timestamp) async {
+    await seek(timestamp);
   }
 
   Future<void> play() async {
@@ -275,6 +367,7 @@ class AudioProvider with ChangeNotifier {
   void dispose() {
     _sleepTimer?.cancel();
     _connectivitySubscription?.cancel();
+    _positionSubscription?.cancel();
     super.dispose();
   }
 }

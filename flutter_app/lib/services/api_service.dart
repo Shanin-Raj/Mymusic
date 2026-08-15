@@ -202,4 +202,34 @@ class ApiService {
       throw Exception('Failed to fetch server time');
     }
   }
+
+  static Future<Map<String, dynamic>?> fetchLyrics(
+    String songId, {
+    String? name,
+    String? artist,
+    int? durationMs,
+    String? album,
+  }) async {
+    try {
+      final headers = await getHeaders();
+      final uri = Uri.parse('$baseUrl/api/songs/$songId/lyrics').replace(queryParameters: {
+        if (name != null && name.isNotEmpty) 'name': name,
+        if (artist != null && artist.isNotEmpty) 'artist': artist,
+        if (durationMs != null && durationMs > 0) 'duration_ms': durationMs.toString(),
+        if (album != null && album.isNotEmpty) 'album': album,
+      });
+
+      final response = await http.get(uri, headers: headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'ok' && data['lyrics'] != null) {
+          return data['lyrics'] as Map<String, dynamic>;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching lyrics for $songId: $e');
+    }
+    return null;
+  }
 }
+

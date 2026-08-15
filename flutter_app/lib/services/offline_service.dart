@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'api_service.dart';
+import 'lyrics_service.dart';
 
 class OfflineSongMetadata {
   final String id;
@@ -133,6 +134,19 @@ class OfflineService {
       _box.put(songId, jsonEncode(songMetadata.toJson()));
       debugPrint('Downloaded song $songId to ${finalFile.path} ($fileSize bytes)');
 
+      // Also cache lyrics for offline usage
+      try {
+        await LyricsService.instance.getLyrics(
+          songId,
+          name: metadata['name']?.toString(),
+          artist: metadata['artist']?.toString(),
+          durationMs: _parseDuration(metadata['duration_ms']),
+          album: metadata['album']?.toString(),
+        );
+      } catch (lyricsErr) {
+        debugPrint('Non-critical: Failed to cache lyrics for offline song $songId: $lyricsErr');
+      }
+
       return finalFile.path;
     } catch (e) {
       debugPrint('Download failed for $songId: $e');
@@ -153,7 +167,8 @@ class OfflineService {
         await file.delete();
       }
       _box.delete(songId);
-      debugPrint('Removed offline song $songId');
+      await LyricsService.instance.removeLocalLyrics(songId);
+      debugPrint('Removed offline song and lyrics for $songId');
     } catch (e) {
       debugPrint('Failed to remove offline song $songId: $e');
     }

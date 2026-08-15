@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { db, admin } = require('./firebase');
 const { addSong } = require('./adder');
+const { fetchLyrics } = require('./lyrics');
 const { getPresignedUrl, getObjectStream, deleteFromB2 } = require('./s3');
 const { initSyncEngine } = require('./sync_engine');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -175,6 +176,64 @@ async function getPlaylists() {
     return playlistsCache;
 }
 
+// ── Lyrics API ─────────────────────────────────────────────────────────────
+app.get('/api/songs/:id/lyrics', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const song = await getSongById(id);
+
+        // If song already has cached lyrics in Firestore
+        if (song && song.lyrics) {
+            return res.json({
+                status: 'ok',
+                lyrics: song.lyrics
+            });
+        }
+
+        // Determine parameters for lookup
+        const name = song ? song.name : (req.query.name || '');
+        const artist = song ? song.artist : (req.query.artist || '');
+        const duration_ms = song ? (song.duration_ms || 0) : parseInt(req.query.duration_ms || '0');
+        const album = song ? (song.album || '') : (req.query.album || '');
+
+        if (!name) {
+            return res.status(404).json({ error: 'Song name is required to fetch lyrics' });
+        }
+
+        const lyrics = await fetchLyrics(name, artist, duration_ms, album);
+
+        if (lyrics) {
+            // Cache to Firestore if the song document exists
+            if (song) {
+                try {
+                    await db.collection('songs').doc(id).update({
+                        lyrics: {
+                            ...lyrics,
+                            updated_at: new Date().toISOString()
+                        }
+                    });
+                    song.lyrics = lyrics;
+                } catch (updateErr) {
+                    console.warn(`⚠️ Failed to cache lyrics in Firestore for ${id}:`, updateErr.message);
+                }
+            }
+
+            return res.json({
+                status: 'ok',
+                lyrics
+            });
+        } else {
+            return res.json({
+                status: 'ok',
+                lyrics: null,
+                message: 'No lyrics available for this song'
+            });
+        }
+    } catch (err) {
+        console.error('API /api/songs/:id/lyrics error:', err);
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
 
 app.post('/api/add-song', async (req, res) => {
     try {

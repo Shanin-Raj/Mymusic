@@ -25,6 +25,7 @@ void main() async {
 
   await Hive.initFlutter();
   await Hive.openBox('offline_songs');
+  await Hive.openBox('song_lyrics');
 
   final connectivityService = ConnectivityService.instance;
   await connectivityService.init();

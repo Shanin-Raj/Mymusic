@@ -1,6 +1,7 @@
 const { getPlaylistTracks } = require('./spotify');
 const { downloadSong } = require('./downloader');
 const { uploadToB2 } = require('./s3');
+const { fetchLyrics } = require('./lyrics');
 const { db } = require('./firebase');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
@@ -117,10 +118,23 @@ async function addSong(data) {
             console.warn(`⚠️ Failed to delete local temp file ${filePath}:`, unlinkErr.message);
         }
 
-        // 3. Save to Firestore
+        // 3. Fetch Lyrics (best-effort, non-blocking)
+        let lyricsData = null;
+        try {
+            console.log(`📡 Fetching lyrics for ${track.name}...`);
+            lyricsData = await fetchLyrics(track.name, track.artist, track.duration_ms, track.album);
+            if (lyricsData) {
+                lyricsData.updated_at = new Date().toISOString();
+            }
+        } catch (lyricsErr) {
+            console.warn(`⚠️ Lyrics fetch failed during addition:`, lyricsErr.message);
+        }
+
+        // 4. Save to Firestore
         const finalData = {
             ...track,
             fileKey,
+            ...(lyricsData ? { lyrics: lyricsData } : {}),
             added_at: admin.firestore.FieldValue.serverTimestamp()
         };
         await db.collection('songs').doc(track.id).set(finalData);
